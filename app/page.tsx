@@ -1,133 +1,103 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import GradioImageUpload from "./components/GradioImageUpload";
 
 export default function Home() {
   const [image, setImage] = useState<string | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [resultImages, setResultImages] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  React.useEffect(() => {
+    if (!image) {
+      setResultImages([]);
+      return;
     }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-  };
-
-  const handleClick = () => {
-    inputRef.current?.click();
-  };
-
-  const handleRemove = () => {
-    setImage(null);
-    if (inputRef.current) inputRef.current.value = "";
-  };
+    setLoading(true);
+    setError(null);
+    fetch("http://localhost:7860", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("API error: " + res.status);
+        const data = await res.json();
+        // Expecting { images: [base64, ...] }
+        if (Array.isArray(data.images)) {
+          setResultImages(data.images);
+        } else {
+          setResultImages([]);
+        }
+      })
+      .catch((err) => {
+        setError(err.message || "Unknown error");
+        setResultImages([]);
+      })
+      .finally(() => setLoading(false));
+  }, [image]);
 
   return (
     <main style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 40 }}>
       <h1>Image Upload (Gradio-like Minimal)</h1>
-      <div
-        onClick={handleClick}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        style={{
-          border: dragActive ? "2px solid #0070f3" : "2px dashed #bbb",
-          borderRadius: 12,
+      <GradioImageUpload value={image} onChange={setImage} />
+      {loading && <div style={{ marginTop: 24, color: "#0070f3" }}>Processing...</div>}
+      {error && <div style={{ marginTop: 24, color: "#d00" }}>Error: {error}</div>}
+      {resultImages.length > 0 && (
+        <div style={{
+          marginTop: 32,
           width: "100%",
-          maxWidth: 400,
-          height: 300,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: dragActive ? "#e6f0fa" : "#fafafa",
-          cursor: "pointer",
-          transition: "border 0.2s, background 0.2s",
-          position: "relative",
-        }}
-      >
-        <input
-          type="file"
-          accept="image/*"
-          ref={inputRef}
-          style={{ display: "none" }}
-          onChange={handleImageChange}
-        />
-        {image ? (
-          <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", position: "relative" }}>
-            <button
-              onClick={e => { e.stopPropagation(); handleRemove(); }}
-              style={{
-                position: "absolute",
-                top: 10,
-                right: 10,
-                background: "rgba(255,255,255,0.85)",
-                border: "1px solid #bbb",
-                borderRadius: "50%",
-                width: 28,
-                height: 28,
+          maxWidth: 800,
+          background: "#fff",
+          border: "1px solid #eee",
+          borderRadius: 12,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+          padding: 24,
+          overflow: "hidden",
+        }}>
+          <h2 style={{ margin: 0, marginBottom: 16, fontSize: 20, fontWeight: 600, color: "#222" }}>Catalog</h2>
+          <div style={{
+            display: "flex",
+            flexDirection: "row",
+            gap: 24,
+            overflowX: "auto",
+            paddingBottom: 8,
+            scrollbarWidth: "thin",
+            scrollbarColor: "#bbb #eee",
+          }}>
+            {resultImages.map((img, idx) => (
+              <div key={idx} style={{
+                minWidth: 180,
+                maxWidth: 180,
+                background: "#fafbfc",
+                border: "1px solid #ddd",
+                borderRadius: 10,
+                boxShadow: "0 1px 6px rgba(0,0,0,0.07)",
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                fontSize: 18,
-                fontWeight: "bold",
-                zIndex: 2,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
-                padding: 0,
-              }}
-              aria-label="Remove image"
-            >
-              ×
-            </button>
-            <img
-              src={image}
-              alt="Uploaded Preview"
-              style={{
-                maxWidth: "100%",
-                maxHeight: 220,
-                borderRadius: 8,
-                marginBottom: 12,
-                boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
-              }}
-            />
+                padding: 12,
+                transition: "box-shadow 0.2s",
+              }}>
+                <img
+                  src={img}
+                  alt={`Result ${idx + 1}`}
+                  style={{
+                    width: "100%",
+                    height: 120,
+                    objectFit: "cover",
+                    borderRadius: 6,
+                    marginBottom: 8,
+                    background: "#eee",
+                  }}
+                />
+                <span style={{ fontSize: 13, color: "#888" }}>Image {idx + 1}</span>
+              </div>
+            ))}
           </div>
-        ) : (
-          <span style={{ color: "#888", fontSize: 18, textAlign: "center" }}>
-            {dragActive ? "Drop image here" : "Click or drag an image here to upload"}
-          </span>
-        )}
-      </div>
+        </div>
+      )}
     </main>
   );
 } 
