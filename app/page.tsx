@@ -16,7 +16,8 @@ export default function Home() {
     }
     setLoading(true);
     setError(null);
-    fetch("http://localhost:7860", {
+    // fetch("http://localhost:7860", {
+    fetch("http://10.100.102.36:7861", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image }),
@@ -48,7 +49,7 @@ export default function Home() {
         <div style={{
           marginTop: 32,
           width: "100%",
-          maxWidth: 800,
+          maxWidth: 1000,
           background: "#fff",
           border: "1px solid #eee",
           borderRadius: 12,
@@ -58,18 +59,22 @@ export default function Home() {
         }}>
           <h2 style={{ margin: 0, marginBottom: 16, fontSize: 20, fontWeight: 600, color: "#222" }}>Catalog</h2>
           <div style={{
-            display: "flex",
-            flexDirection: "row",
-            gap: 24,
-            overflowX: "auto",
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gridAutoRows: "180px",
+            gap: 32,
+            maxHeight: 440, // 2 rows of 180px cards + gap
+            overflowY: "auto",
             paddingBottom: 8,
             scrollbarWidth: "thin",
             scrollbarColor: "#bbb #eee",
+            justifyItems: "center",
+            alignItems: "center",
           }}>
             {resultImages.map((img, idx) => (
               <div key={idx} style={{
-                minWidth: 180,
-                maxWidth: 180,
+                width: 220,
+                height: 180,
                 background: "#fafbfc",
                 border: "1px solid #ddd",
                 borderRadius: 10,
@@ -79,20 +84,23 @@ export default function Home() {
                 alignItems: "center",
                 padding: 12,
                 transition: "box-shadow 0.2s",
+                minWidth: 0,
+                justifyContent: "center",
               }}>
                 <img
                   src={img}
-                  alt={`Result ${idx + 1}`}
+                  alt="Result"
                   style={{
                     width: "100%",
-                    height: 120,
-                    objectFit: "cover",
+                    height: 160,
+                    objectFit: "contain",
                     borderRadius: 6,
                     marginBottom: 8,
                     background: "#eee",
                   }}
                 />
-                <span style={{ fontSize: 13, color: "#888" }}>Image {idx + 1}</span>
+                {/* Placeholder for progress bar */}
+                <div style={{ width: "100%", height: 8, background: "#f0f0f0", borderRadius: 4 }} />
               </div>
             ))}
           </div>

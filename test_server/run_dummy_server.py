@@ -10,7 +10,7 @@ CORS(app)
 # Load images from the results folder
 def load_images():
     images = []
-    results_dir = r"C:\Users\ShayMoshe\OneDrive - vayyar.com\Documents\Personal\ML\HairSProject\pics\Shay\my_pics_fixed_ratio"
+    results_dir = r"C:\Users\ShayMoshe\OneDrive - vayyar.com\Documents\Personal\ML\HairSProject\pics\Archive\output_examples\Shay_With_Hair_TBW3_upscaled"
     if os.path.exists(results_dir):
         for filename in os.listdir(results_dir):
             if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
@@ -21,6 +21,7 @@ def load_images():
 
 @app.route("/", methods=["POST"])
 def process_image():
+    print("Received a request to process an image")
     # Get the input image from request
     data = request.json
     if not data or 'image' not in data:
@@ -30,5 +31,6 @@ def process_image():
     return jsonify({"images": load_images()})
 
 if __name__ == "__main__":
-    app.run(host="localhost", port=7860)
+    # app.run(host="localhost", port=7860)
+    app.run(host="10.100.102.36", port=7861)
 
