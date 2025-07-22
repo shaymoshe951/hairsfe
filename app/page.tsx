@@ -64,7 +64,8 @@ export default function Home() {
         style={{
           border: dragActive ? "2px solid #0070f3" : "2px dashed #bbb",
           borderRadius: 12,
-          width: 400,
+          width: "100%",
+          maxWidth: 400,
           height: 300,
           display: "flex",
           alignItems: "center",
