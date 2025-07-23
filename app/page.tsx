@@ -47,6 +47,7 @@ export default function Home() {
       {error && <div style={{ marginTop: 24, color: "#d00" }}>Error: {error}</div>}
       {resultImages.length > 0 && (
         <div
+          className="catalog-container"
           style={{
             marginTop: 32,
             width: "100%",
@@ -57,16 +58,17 @@ export default function Home() {
             boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
             padding: 24,
             overflow: "hidden",
+            fontFamily: 'system-ui, sans-serif',
           }}
         >
-          <h2 style={{ margin: 0, marginBottom: 16, fontSize: 20, fontWeight: 600, color: "#222" }}>Catalog</h2>
+          <h2 style={{ margin: 0, marginBottom: 16, fontSize: 22, fontWeight: 700, color: "#222", letterSpacing: 0.5 }}>Catalog</h2>
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, 1fr)",
-              gridAutoRows: "180px",
+              gridAutoRows: "220px",
               gap: 32,
-              maxHeight: 440, // 2 rows of 180px cards + gap
+              maxHeight: 504, // 2 rows of 220px cards + gap
               overflowY: "auto",
               paddingBottom: 8,
               scrollbarWidth: "thin",
@@ -78,36 +80,66 @@ export default function Home() {
             {resultImages.map((img, idx) => (
               <div
                 key={idx}
+                className="catalog-card"
                 style={{
                   width: 220,
-                  height: 180,
-                  background: "#fafbfc",
-                  border: "1px solid #ddd",
-                  borderRadius: 10,
-                  boxShadow: "0 1px 6px rgba(0,0,0,0.07)",
+                  height: 220,
+                  background: "#fff",
+                  border: "1.5px solid #e0e0e0",
+                  borderRadius: 14,
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  padding: 12,
-                  transition: "box-shadow 0.2s",
+                  padding: 16,
+                  transition: "box-shadow 0.2s, border 0.2s",
                   minWidth: 0,
-                  justifyContent: "center",
+                  justifyContent: "flex-start",
+                  position: "relative",
+                  cursor: "pointer",
+                  fontFamily: 'system-ui, sans-serif',
+                }}
+                onMouseOver={e => {
+                  e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.13)";
+                  e.currentTarget.style.border = "2px solid #0070f3";
+                }}
+                onMouseOut={e => {
+                  e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.07)";
+                  e.currentTarget.style.border = "1.5px solid #e0e0e0";
                 }}
               >
                 <img
                   src={img}
-                  alt="Result"
+                  alt="Product"
                   style={{
                     width: "100%",
-                    height: 160,
+                    height: 140,
                     objectFit: "contain",
-                    borderRadius: 6,
-                    marginBottom: 8,
-                    background: "#eee",
+                    borderRadius: 8,
+                    background: "#f6f6f6",
+                    marginBottom: 16,
                   }}
                 />
-                {/* Placeholder for progress bar */}
-                <div style={{ width: "100%", height: 8, background: "#f0f0f0", borderRadius: 4 }} />
+                <button
+                  style={{
+                    width: "100%",
+                    padding: "8px 0",
+                    background: "#0070f3",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    fontWeight: 600,
+                    fontSize: 15,
+                    letterSpacing: 0.2,
+                    cursor: "pointer",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+                    transition: "background 0.2s",
+                  }}
+                  onMouseOver={e => (e.currentTarget.style.background = "#0059c1")}
+                  onMouseOut={e => (e.currentTarget.style.background = "#0070f3")}
+                >
+                  Select
+                </button>
               </div>
             ))}
           </div>
