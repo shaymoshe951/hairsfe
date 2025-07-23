@@ -46,47 +46,54 @@ export default function Home() {
       {loading && <div style={{ marginTop: 24, color: "#0070f3" }}>Processing...</div>}
       {error && <div style={{ marginTop: 24, color: "#d00" }}>Error: {error}</div>}
       {resultImages.length > 0 && (
-        <div style={{
-          marginTop: 32,
-          width: "100%",
-          maxWidth: 1000,
-          background: "#fff",
-          border: "1px solid #eee",
-          borderRadius: 12,
-          boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-          padding: 24,
-          overflow: "hidden",
-        }}>
+        <div
+          style={{
+            marginTop: 32,
+            width: "100%",
+            maxWidth: 1200,
+            background: "#fff",
+            border: "1px solid #eee",
+            borderRadius: 12,
+            boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+            padding: 24,
+            overflow: "hidden",
+          }}
+        >
           <h2 style={{ margin: 0, marginBottom: 16, fontSize: 20, fontWeight: 600, color: "#222" }}>Catalog</h2>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gridAutoRows: "180px",
-            gap: 32,
-            maxHeight: 440, // 2 rows of 180px cards + gap
-            overflowY: "auto",
-            paddingBottom: 8,
-            scrollbarWidth: "thin",
-            scrollbarColor: "#bbb #eee",
-            justifyItems: "center",
-            alignItems: "center",
-          }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gridAutoRows: "180px",
+              gap: 32,
+              maxHeight: 440, // 2 rows of 180px cards + gap
+              overflowY: "auto",
+              paddingBottom: 8,
+              scrollbarWidth: "thin",
+              scrollbarColor: "#bbb #eee",
+              justifyItems: "center",
+              alignItems: "center",
+            }}
+          >
             {resultImages.map((img, idx) => (
-              <div key={idx} style={{
-                width: 220,
-                height: 180,
-                background: "#fafbfc",
-                border: "1px solid #ddd",
-                borderRadius: 10,
-                boxShadow: "0 1px 6px rgba(0,0,0,0.07)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                padding: 12,
-                transition: "box-shadow 0.2s",
-                minWidth: 0,
-                justifyContent: "center",
-              }}>
+              <div
+                key={idx}
+                style={{
+                  width: 220,
+                  height: 180,
+                  background: "#fafbfc",
+                  border: "1px solid #ddd",
+                  borderRadius: 10,
+                  boxShadow: "0 1px 6px rgba(0,0,0,0.07)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  padding: 12,
+                  transition: "box-shadow 0.2s",
+                  minWidth: 0,
+                  justifyContent: "center",
+                }}
+              >
                 <img
                   src={img}
                   alt="Result"
@@ -108,4 +115,22 @@ export default function Home() {
       )}
     </main>
   );
+}
+
+// Add responsive CSS for the catalog container
+if (typeof window !== "undefined") {
+  const styleId = "catalog-responsive-style";
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.innerHTML = `
+      @media (max-width: 1300px) {
+        .catalog-container { max-width: 100vw !important; }
+      }
+      @media (max-width: 900px) {
+        .catalog-container { max-width: 100vw !important; padding: 12px !important; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
 } 
