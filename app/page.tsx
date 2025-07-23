@@ -13,8 +13,9 @@ export default function Home() {
   const [processing, setProcessing] = useState<{ progress: number; isProcessing: boolean; isDone: boolean; }[]>([]);
   const [processingIndex, setProcessingIndex] = useState<number | null>(null);
   const [selectVisible, setSelectVisible] = useState(false);
-  const processingRef = React.useRef<{ cancel: (() => void) | null }>({ cancel: null });
+  const processingRef = React.useRef<{ cancel: (() => void) | null; state: { [idx: number]: { progress: number; isProcessing: boolean; isDone: boolean; } } }>({ cancel: null, state: {} });
   const lastFavIdxRef = React.useRef<number | null>(null);
+  const queueRunning = React.useRef(false);
 
   const API_BASE_URL = "http://10.100.102.36:7861"; //"http://localhost:7860"
 
@@ -37,7 +38,7 @@ export default function Home() {
       let done = false;
       let localDone = false;
       while (!done && !localDone) {
-        if (processing[idx]?.isDone) { localDone = true; break; }
+        if (processingRef.current.state?.[idx]?.isDone) { localDone = true; break; }
         await new Promise(r => setTimeout(r, 300));
         if (localDone) break;
         const progRes = await fetch(`${API_BASE_URL}/progress?task_id=${taskId}`);
@@ -110,7 +111,12 @@ export default function Home() {
 
   // New effect to start background processing when processing is ready
   React.useEffect(() => {
-    if (processing.length === 0 || processing.length !== resultImages.length) return;
+    if (
+      processing.length === 0 ||
+      processing.length !== resultImages.length ||
+      queueRunning.current
+    ) return;
+    queueRunning.current = true;
     let cancelled = false;
     const runQueue = async () => {
       while (true) {
@@ -120,11 +126,11 @@ export default function Home() {
         await processImage(nextIdx);
         if (cancelled) break;
       }
-      setSelectVisible(true);
+      queueRunning.current = false;
     };
     runQueue();
-    return () => { cancelled = true; };
-  }, [processing, resultImages, favorites]);
+    return () => { cancelled = true; queueRunning.current = false; };
+  }, [processing.length, resultImages.length]);
 
   // Handle favorite during processing
   React.useEffect(() => {
@@ -193,6 +199,11 @@ export default function Home() {
     }
     // Only depend on favorites, processing, and processingIndex
   }, [favorites, processing, processingIndex]);
+
+  // Keep processingRef in sync with processing state
+  React.useEffect(() => {
+    processingRef.current.state = processing;
+  }, [processing]);
 
   return (
     <main style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 40 }}>
