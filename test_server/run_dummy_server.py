@@ -41,12 +41,12 @@ def get_images():
 
 @app.route("/process_image", methods=["POST"])
 def process_image():
-    print("Received a request to process specific image")
     # Get the image index from request
     data = request.json
     if not data or 'index' not in data:
         return jsonify({"error": "No image index provided"}), 400
 
+    print("Received a request to process specific image, index:", data['index'])
     if data['index'] in index_to_task_id:
         # return jsonify({"error": "Image already being processed"}), 400
         task_id = index_to_task_id[data['index']]

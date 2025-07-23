@@ -18,6 +18,56 @@ export default function Home() {
 
   const API_BASE_URL = "http://10.100.102.36:7861"; //"http://localhost:7860"
 
+  // Define processImage before useEffect
+  const processImage = async (idx: number) => {
+    setProcessingIndex(idx);
+    setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, isProcessing: true } : p));
+    let taskId = null;
+    try {
+      // Start processing and get task_id
+      const startRes = await fetch(`${API_BASE_URL}/process_image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ index: idx }),
+      });
+      if (!startRes.ok) throw new Error("Server error");
+      const startData = await startRes.json();
+      taskId = startData.task_id;
+      // Poll for progress
+      let done = false;
+      let localDone = false;
+      while (!done && !localDone) {
+        if (processing[idx]?.isDone) { localDone = true; break; }
+        await new Promise(r => setTimeout(r, 300));
+        if (localDone) break;
+        const progRes = await fetch(`${API_BASE_URL}/progress?task_id=${taskId}`);
+        if (!progRes.ok) throw new Error("Progress error");
+        const progData = await progRes.json();
+        const percent = progData.progress ?? 0;
+        done = percent >= 100 || progData.done;
+        if (done) {
+          setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
+          localDone = true;
+          break;
+        }
+        if (!localDone) {
+          setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: percent, isProcessing: true } : p));
+        }
+      }
+      // Fetch result
+      const resultRes = await fetch(`${API_BASE_URL}/result?task_id=${taskId}`);
+      if (!resultRes.ok) throw new Error("Result error");
+      const resultData = await resultRes.json();
+      setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
+      setResultImages(prev => prev.map((img, i) => i === idx ? resultData.image : img));
+    } catch (e) {
+      setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, isProcessing: false } : p));
+    } finally {
+      setProcessingIndex(null);
+      processingRef.current.cancel = null;
+    }
+  };
+
   React.useEffect(() => {
     if (!image) {
       setResultImages([]);
@@ -52,75 +102,29 @@ export default function Home() {
     if (resultImages.length === 0) return;
     setSelectVisible(false);
     setProcessing(resultImages.map(() => ({ progress: 0, isProcessing: false, isDone: false })));
+    // Remove runQueue from here
+    // let cancelled = false; ...
+    // runQueue();
+    // return () => { cancelled = true; };
+  }, [resultImages]);
+
+  // New effect to start background processing when processing is ready
+  React.useEffect(() => {
+    if (processing.length === 0 || processing.length !== resultImages.length) return;
     let cancelled = false;
-    let current = 0;
-    let resumeFrom = 0;
-    let queue: number[] = Array.from({ length: resultImages.length }, (_, i) => i);
-    let isPaused = false;
-
-    const processImage = async (idx: number) => {
-      setProcessingIndex(idx);
-      setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, isProcessing: true } : p));
-      let taskId = null;
-      try {
-        // Start processing and get task_id
-        const startRes = await fetch(`${API_BASE_URL}/process_image`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ index: idx }),
-        });
-        if (!startRes.ok) throw new Error("Server error");
-        const startData = await startRes.json();
-        taskId = startData.task_id;
-        // Poll for progress
-        let done = false;
-        let localDone = false;
-        while (!done && !localDone) {
-          if (processing[idx]?.isDone) { localDone = true; break; }
-          await new Promise(r => setTimeout(r, 300));
-          if (localDone) break;
-          const progRes = await fetch(`${API_BASE_URL}/progress?task_id=${taskId}`);
-          if (!progRes.ok) throw new Error("Progress error");
-          const progData = await progRes.json();
-          const percent = progData.progress ?? 0;
-          done = percent >= 100 || progData.done;
-          if (done) {
-            setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
-            localDone = true;
-            break;
-          }
-          if (!localDone) {
-            setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: percent, isProcessing: true } : p));
-          }
-        }
-        // Fetch result
-        const resultRes = await fetch(`${API_BASE_URL}/result?task_id=${taskId}`);
-        if (!resultRes.ok) throw new Error("Result error");
-        const resultData = await resultRes.json();
-        setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
-        setResultImages(prev => prev.map((img, i) => i === idx ? resultData.image : img));
-      } catch (e) {
-        setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, isProcessing: false } : p));
-      } finally {
-        setProcessingIndex(null);
-        processingRef.current.cancel = null;
-      }
-    };
-
     const runQueue = async () => {
-      for (let i = 0; i < queue.length; i++) {
+      while (true) {
         if (cancelled) break;
-        const idx = queue[i];
-        if (processing[idx]?.isDone || favorites[idx]) continue; // Skip already processed or favorited
-        await processImage(idx);
+        const nextIdx = processing.findIndex((p, i) => !p.isDone && !favorites[i]);
+        if (nextIdx === -1) break;
+        await processImage(nextIdx);
         if (cancelled) break;
       }
       setSelectVisible(true);
     };
-
     runQueue();
     return () => { cancelled = true; };
-  }, [resultImages]);
+  }, [processing, resultImages, favorites]);
 
   // Handle favorite during processing
   React.useEffect(() => {
