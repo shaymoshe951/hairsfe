@@ -10,6 +10,13 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<{ [idx: number]: boolean }>({});
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+  const [processing, setProcessing] = useState<{ progress: number; isProcessing: boolean; isDone: boolean; }[]>([]);
+  const [processingIndex, setProcessingIndex] = useState<number | null>(null);
+  const [selectVisible, setSelectVisible] = useState(false);
+  const processingRef = React.useRef<{ cancel: (() => void) | null }>({ cancel: null });
+  const lastFavIdxRef = React.useRef<number | null>(null);
+
+  const API_BASE_URL = "http://10.100.102.36:7861"; //"http://localhost:7860"
 
   React.useEffect(() => {
     if (!image) {
@@ -18,8 +25,7 @@ export default function Home() {
     }
     setLoading(true);
     setError(null);
-    // fetch("http://localhost:7860", {
-    fetch("http://10.100.102.36:7861/get_images", {
+    fetch(`${API_BASE_URL}/get_images`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image }),
@@ -40,6 +46,149 @@ export default function Home() {
       })
       .finally(() => setLoading(false));
   }, [image]);
+
+  // Start background processing when resultImages change
+  React.useEffect(() => {
+    if (resultImages.length === 0) return;
+    setSelectVisible(false);
+    setProcessing(resultImages.map(() => ({ progress: 0, isProcessing: false, isDone: false })));
+    let cancelled = false;
+    let current = 0;
+    let resumeFrom = 0;
+    let queue: number[] = Array.from({ length: resultImages.length }, (_, i) => i);
+    let isPaused = false;
+
+    const processImage = async (idx: number) => {
+      setProcessingIndex(idx);
+      setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, isProcessing: true } : p));
+      let taskId = null;
+      try {
+        // Start processing and get task_id
+        const startRes = await fetch(`${API_BASE_URL}/process_image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ index: idx }),
+        });
+        if (!startRes.ok) throw new Error("Server error");
+        const startData = await startRes.json();
+        taskId = startData.task_id;
+        // Poll for progress
+        let done = false;
+        let localDone = false;
+        while (!done && !localDone) {
+          if (processing[idx]?.isDone) { localDone = true; break; }
+          await new Promise(r => setTimeout(r, 300));
+          if (localDone) break;
+          const progRes = await fetch(`${API_BASE_URL}/progress?task_id=${taskId}`);
+          if (!progRes.ok) throw new Error("Progress error");
+          const progData = await progRes.json();
+          const percent = progData.progress ?? 0;
+          done = percent >= 100 || progData.done;
+          if (done) {
+            setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
+            localDone = true;
+            break;
+          }
+          if (!localDone) {
+            setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: percent, isProcessing: true } : p));
+          }
+        }
+        // Fetch result
+        const resultRes = await fetch(`${API_BASE_URL}/result?task_id=${taskId}`);
+        if (!resultRes.ok) throw new Error("Result error");
+        const resultData = await resultRes.json();
+        setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
+        setResultImages(prev => prev.map((img, i) => i === idx ? resultData.image : img));
+      } catch (e) {
+        setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, isProcessing: false } : p));
+      } finally {
+        setProcessingIndex(null);
+        processingRef.current.cancel = null;
+      }
+    };
+
+    const runQueue = async () => {
+      for (let i = 0; i < queue.length; i++) {
+        if (cancelled) break;
+        const idx = queue[i];
+        if (processing[idx]?.isDone || favorites[idx]) continue; // Skip already processed or favorited
+        await processImage(idx);
+        if (cancelled) break;
+      }
+      setSelectVisible(true);
+    };
+
+    runQueue();
+    return () => { cancelled = true; };
+  }, [resultImages]);
+
+  // Handle favorite during processing
+  React.useEffect(() => {
+    // Find the first favorite that is not done
+    const favIdxEntry = Object.entries(favorites).find(([idx, val]) => val && (!processing[+idx]?.isDone));
+    const favIdx = favIdxEntry ? +favIdxEntry[0] : null;
+    // Only process if a new favorite is found and it's not already being processed or done
+    if (
+      favIdx !== null &&
+      favIdx !== processingIndex &&
+      favIdx !== lastFavIdxRef.current &&
+      !processing[favIdx]?.isDone
+    ) {
+      lastFavIdxRef.current = favIdx;
+      // Cancel current
+      if (processingRef.current.cancel) processingRef.current.cancel();
+      // Process favorite immediately
+      (async () => {
+        setProcessingIndex(favIdx);
+        setProcessing(prev => prev.map((p, i) => i === favIdx ? { ...p, isProcessing: true } : p));
+        let taskId = null;
+        try {
+          // Start processing
+          const startRes = await fetch(`${API_BASE_URL}/process_image`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ index: favIdx }),
+          });
+          if (!startRes.ok) throw new Error("Server error");
+          const startData = await startRes.json();
+          taskId = startData.task_id;
+          // Poll for progress
+          let done = false;
+          let localDone = false;
+          while (!done && !localDone) {
+            if (processing[favIdx]?.isDone) { localDone = true; break; }
+            await new Promise(r => setTimeout(r, 300));
+            if (localDone) break;
+            const progRes = await fetch(`${API_BASE_URL}/progress?task_id=${taskId}`);
+            if (!progRes.ok) throw new Error("Progress error");
+            const progData = await progRes.json();
+            const percent = progData.progress ?? 0;
+            done = percent >= 100 || progData.done;
+            if (done) {
+              setProcessing(prev => prev.map((p, i) => i === favIdx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
+              localDone = true;
+              break;
+            }
+            if (!localDone) {
+              setProcessing(prev => prev.map((p, i) => i === favIdx ? { ...p, progress: percent, isProcessing: true } : p));
+            }
+          }
+          // Fetch result
+          const resultRes = await fetch(`${API_BASE_URL}/result?task_id=${taskId}`);
+          if (!resultRes.ok) throw new Error("Result error");
+          const resultData = await resultRes.json();
+          setProcessing(prev => prev.map((p, i) => i === favIdx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
+          setResultImages(prev => prev.map((img, i) => i === favIdx ? resultData.image : img));
+        } catch (e) {
+          setProcessing(prev => prev.map((p, i) => i === favIdx ? { ...p, isProcessing: false } : p));
+        } finally {
+          setProcessingIndex(null);
+          processingRef.current.cancel = null;
+        }
+      })();
+    }
+    // Only depend on favorites, processing, and processingIndex
+  }, [favorites, processing, processingIndex]);
 
   return (
     <main style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 40 }}>
@@ -156,7 +305,7 @@ export default function Home() {
                       marginTop: 8,
                     }}
                   />
-                  <button
+                  {/* <button
                     style={{
                       width: "100%",
                       padding: "10px 0",
@@ -177,9 +326,35 @@ export default function Home() {
                     disabled
                   >
                     Select
-                  </button>
+                  </button> */}
                   {/* Progress bar placeholder (hidden by default) */}
-                  <div style={{ width: "100%", height: 10, background: "#f7f5f2", borderRadius: 5, visibility: "hidden" }} />
+                  {processing[idx]?.isProcessing && !processing[idx]?.isDone && (
+                    <div style={{ width: "100%", height: 10, background: "#ede7f6", borderRadius: 5, marginTop: 8, overflow: "hidden" }}>
+                      <div style={{ width: `${processing[idx].progress}%`, height: "100%", background: "#7c4dff", borderRadius: 5, transition: "width 0.3s" }} />
+                    </div>
+                  )}
+                  {processing[idx]?.isDone && (
+                    <button
+                      style={{
+                        width: "100%",
+                        padding: "10px 0",
+                        background: "#5c4432",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 8,
+                        fontWeight: 600,
+                        fontSize: 16,
+                        letterSpacing: 0.2,
+                        cursor: "pointer",
+                        marginTop: "auto",
+                        marginBottom: 8,
+                        boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+                        transition: "background 0.2s",
+                      }}
+                    >
+                      Select
+                    </button>
+                  )}
                 </div>
               );
             })}
