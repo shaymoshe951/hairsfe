@@ -19,7 +19,7 @@ def load_images():
                     images.append(f"data:image/jpeg;base64,{img_data}")
     return images
 
-@app.route("/", methods=["POST"])
+@app.route("/get_images", methods=["POST"])
 def process_image():
     print("Received a request to process an image")
     # Get the input image from request
