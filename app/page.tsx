@@ -14,9 +14,12 @@ export default function Home() {
   const [processingIndex, setProcessingIndex] = useState<number | null>(null);
   const [selectVisible, setSelectVisible] = useState(false);
   const processingRef = React.useRef<{ cancel: (() => void) | null; state: { [idx: number]: { progress: number; isProcessing: boolean; isDone: boolean; } } }>({ cancel: null, state: {} });
+  const favoritesRef = React.useRef<{ [idx: number]: boolean }>({});
   const lastFavIdxRef = React.useRef<number | null>(null);
   const queueRunning = React.useRef(false);
+  const [flagIsSourceUploaded, setFlagIsSourceUploaded] = useState(false);
 
+  
   const API_BASE_URL = "http://10.100.102.36:7861"; //"http://localhost:7860"
 
   // Define processImage before useEffect
@@ -26,6 +29,7 @@ export default function Home() {
     let taskId = null;
     try {
       // Start processing and get task_id
+      // console.log("Processing image", idx);
       const startRes = await fetch(`${API_BASE_URL}/process_image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -62,6 +66,7 @@ export default function Home() {
       setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
       setResultImages(prev => prev.map((img, i) => i === idx ? resultData.image : img));
     } catch (e) {
+      console.log("Error processing image", idx, e);
       setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, isProcessing: false } : p));
     } finally {
       setProcessingIndex(null);
@@ -86,6 +91,7 @@ export default function Home() {
         const data = await res.json();
         // Expecting { images: [base64, ...] }
         if (Array.isArray(data.images)) {
+          setFlagIsSourceUploaded(true);
           setResultImages(data.images);
         } else {
           setResultImages([]);
@@ -98,16 +104,28 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, [image]);
 
-  // Start background processing when resultImages change
+//  Start background processing when resultImages change
   React.useEffect(() => {
-    if (resultImages.length === 0) return;
+    if (resultImages.length === 0 || !flagIsSourceUploaded) return;
     setSelectVisible(false);
+    // console.log("Result images changed due to upload");
     setProcessing(resultImages.map(() => ({ progress: 0, isProcessing: false, isDone: false })));
+    setFlagIsSourceUploaded(false);
     // Remove runQueue from here
     // let cancelled = false; ...
     // runQueue();
     // return () => { cancelled = true; };
   }, [resultImages]);
+
+  // Keep processingRef in sync with processing state
+  React.useEffect(() => {
+    processingRef.current.state = processing;
+  }, [processing]);
+
+  // New effect to sync favoritesRef
+  React.useEffect(() => {
+    favoritesRef.current = favorites;
+  }, [favorites]);
 
   // New effect to start background processing when processing is ready
   React.useEffect(() => {
@@ -121,7 +139,10 @@ export default function Home() {
     const runQueue = async () => {
       while (true) {
         if (cancelled) break;
-        const nextIdx = processing.findIndex((p, i) => !p.isDone && !favorites[i]);
+        // console.log("Processing", processing);
+        // console.log("Processing ref", processingRef.current.state);
+        const nextIdx = processingRef.current.state.findIndex((p, i) => !p.isDone && !favoritesRef.current[i]);
+        // console.log("Next index", nextIdx);
         if (nextIdx === -1) break;
         await processImage(nextIdx);
         if (cancelled) break;
@@ -135,14 +156,14 @@ export default function Home() {
   // Handle favorite during processing
   React.useEffect(() => {
     // Find the first favorite that is not done
-    const favIdxEntry = Object.entries(favorites).find(([idx, val]) => val && (!processing[+idx]?.isDone));
+    const favIdxEntry = Object.entries(favorites).find(([idx, val]) => val && (!processingRef.current.state[+idx]?.isDone));
     const favIdx = favIdxEntry ? +favIdxEntry[0] : null;
     // Only process if a new favorite is found and it's not already being processed or done
     if (
       favIdx !== null &&
       favIdx !== processingIndex &&
       favIdx !== lastFavIdxRef.current &&
-      !processing[favIdx]?.isDone
+      !processingRef.current.state[favIdx]?.isDone
     ) {
       lastFavIdxRef.current = favIdx;
       // Cancel current
@@ -154,6 +175,7 @@ export default function Home() {
         let taskId = null;
         try {
           // Start processing
+          console.log("Processing favorite", favIdx);
           const startRes = await fetch(`${API_BASE_URL}/process_image`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -166,7 +188,7 @@ export default function Home() {
           let done = false;
           let localDone = false;
           while (!done && !localDone) {
-            if (processing[favIdx]?.isDone) { localDone = true; break; }
+            if (processingRef.current.state?.[favIdx]?.isDone) { localDone = true; break; }
             await new Promise(r => setTimeout(r, 300));
             if (localDone) break;
             const progRes = await fetch(`${API_BASE_URL}/progress?task_id=${taskId}`);
@@ -199,11 +221,6 @@ export default function Home() {
     }
     // Only depend on favorites, processing, and processingIndex
   }, [favorites, processing, processingIndex]);
-
-  // Keep processingRef in sync with processing state
-  React.useEffect(() => {
-    processingRef.current.state = processing;
-  }, [processing]);
 
   return (
     <main style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 40 }}>
@@ -396,4 +413,4 @@ if (typeof window !== "undefined") {
     `;
     document.head.appendChild(style);
   }
-} 
+}
