@@ -139,10 +139,10 @@ export default function Home() {
     const runQueue = async () => {
       while (true) {
         if (cancelled) break;
-        // console.log("Processing", processing);
-        // console.log("Processing ref", processingRef.current.state);
-        const nextIdx = processingRef.current.state.findIndex((p, i) => !p.isDone && !favoritesRef.current[i]);
-        // console.log("Next index", nextIdx);
+        // Use Object.entries to get both index and value
+        const entries = Object.entries(processingRef.current.state);
+        const nextEntry = entries.find(([i, p]) => !p.isDone && !favoritesRef.current[+i]);
+        const nextIdx = nextEntry ? +nextEntry[0] : -1;
         if (nextIdx === -1) break;
         await processImage(nextIdx);
         if (cancelled) break;
@@ -169,57 +169,17 @@ export default function Home() {
       // Cancel current
       if (processingRef.current.cancel) processingRef.current.cancel();
       // Process favorite immediately
+      // Reuse processImage for favorite processing to unify logic
       (async () => {
         setProcessingIndex(favIdx);
-        setProcessing(prev => prev.map((p, i) => i === favIdx ? { ...p, isProcessing: true } : p));
-        let taskId = null;
         try {
-          // Start processing
-          console.log("Processing favorite", favIdx);
-          const startRes = await fetch(`${API_BASE_URL}/process_image`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ index: favIdx }),
-          });
-          if (!startRes.ok) throw new Error("Server error");
-          const startData = await startRes.json();
-          taskId = startData.task_id;
-          // Poll for progress
-          let done = false;
-          let localDone = false;
-          while (!done && !localDone) {
-            if (processingRef.current.state?.[favIdx]?.isDone) { localDone = true; break; }
-            await new Promise(r => setTimeout(r, 300));
-            if (localDone) break;
-            const progRes = await fetch(`${API_BASE_URL}/progress?task_id=${taskId}`);
-            if (!progRes.ok) throw new Error("Progress error");
-            const progData = await progRes.json();
-            const percent = progData.progress ?? 0;
-            done = percent >= 100 || progData.done;
-            if (done) {
-              setProcessing(prev => prev.map((p, i) => i === favIdx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
-              localDone = true;
-              break;
-            }
-            if (!localDone) {
-              setProcessing(prev => prev.map((p, i) => i === favIdx ? { ...p, progress: percent, isProcessing: true } : p));
-            }
-          }
-          // Fetch result
-          const resultRes = await fetch(`${API_BASE_URL}/result?task_id=${taskId}`);
-          if (!resultRes.ok) throw new Error("Result error");
-          const resultData = await resultRes.json();
-          setProcessing(prev => prev.map((p, i) => i === favIdx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
-          setResultImages(prev => prev.map((img, i) => i === favIdx ? resultData.image : img));
-        } catch (e) {
-          setProcessing(prev => prev.map((p, i) => i === favIdx ? { ...p, isProcessing: false } : p));
+          await processImage(favIdx);
         } finally {
           setProcessingIndex(null);
           processingRef.current.cancel = null;
         }
       })();
     }
-    // Only depend on favorites, processing, and processingIndex
   }, [favorites, processing, processingIndex]);
 
   return (
