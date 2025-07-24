@@ -6,6 +6,8 @@ from flask_cors import CORS
 import time
 import threading
 import uuid
+from PIL import Image
+import io
 
 app = Flask(__name__)
 CORS(app)
@@ -14,6 +16,7 @@ CORS(app)
 # Add a global dictionary to store the task_id and the image index
 task_dict = {}
 index_to_task_id = {}
+source_image_id_to_images = {}
 
 # Load images from the results folder
 def load_images(results_dir):
@@ -36,27 +39,50 @@ def get_images():
 
     results_dir = r"C:\Users\ShayMoshe\OneDrive - vayyar.com\Documents\Personal\ML\HairSProject\pics\list_of_hairs\arranged"
 
-    # Return the predefined result images
-    return jsonify({"images": load_images(results_dir)})
+    # Generate a sourceImageId (for example, a uuid based on the image string)
+    import hashlib
+    image_str = data['image']
+    source_image_id = hashlib.sha256(image_str.encode('utf-8')).hexdigest()
+
+    # Save the sourceImageId to a dictionary with the image string converted to PIL image
+    # Convert the image string to a PIL image
+    # Strip data URL prefix if present
+    if image_str.startswith("data:image"):
+        image_str = image_str.split(",", 1)[1]
+    img_bytes = base64.b64decode(image_str)
+    source_image_pil = Image.open(io.BytesIO(img_bytes))
+    source_image_pil.load() # force actual image read
+    source_image_id_to_images[source_image_id] = source_image_pil
+
+    # Return the predefined result images and the sourceImageId
+    return jsonify({
+        "images": load_images(results_dir),
+        "sourceImageId": source_image_id
+    })
 
 @app.route("/process_image", methods=["POST"])
 def process_image():
-    # Get the image index from request
+    # Get the image index and sourceImageId from request
     data = request.json
     if not data or 'index' not in data:
         return jsonify({"error": "No image index provided"}), 400
+    if 'sourceImageId' not in data:
+        return jsonify({"error": "No sourceImageId provided"}), 400
 
-    print("Received a request to process specific image, index:", data['index'])
-    if data['index'] in index_to_task_id:
+    print("Received a request to process specific image, index:", data['index'], "sourceImageId:", data['sourceImageId'])
+    # join the sourceImageId and the index to get a unique task_id
+    task_id_prefix = f"{data['sourceImageId']}_{data['index']}"
+
+    if task_id_prefix in index_to_task_id:
         # return jsonify({"error": "Image already being processed"}), 400
-        task_id = index_to_task_id[data['index']]
+        task_id = index_to_task_id[task_id_prefix]
         return jsonify({"task_id": task_id})
 
     # Return task id
     task_id = str(uuid.uuid4())
-    index_to_task_id[data['index']] = task_id
+    index_to_task_id[task_id_prefix] = task_id
     # Add the task_id and the image index to the global dictionary
-    task_dict[task_id] = {'index': data['index'],'progress': 0, 'is_done': False, 'result': None}
+    task_dict[task_id] = {'index': data['index'],'progress': 0, 'is_done': False, 'result': None, 'sourceImageId': data['sourceImageId']}
     # print("task_dict:", task_dict)
     print("task_id:", task_id)
     # print("data['index']: ", data['index'])
