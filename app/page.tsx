@@ -14,6 +14,7 @@ const initialState = {
   isLoading: false,
   error: null,
   activeProcessingCount: 0,
+  sourceImageId: null, // add to initial state
 };
 
 function reducer(state: any, action: any) {
@@ -21,7 +22,7 @@ function reducer(state: any, action: any) {
     case "SET_SOURCE_IMAGE":
       return { ...initialState, sourceImage: action.payload };
     case "FETCH_INITIAL_IMAGES_START":
-      return { ...state, isLoading: true, error: null, items: [] };
+      return { ...state, isLoading: true, error: null, items: [], sourceImageId: action.payload.sourceImageId };
     case "FETCH_INITIAL_IMAGES_SUCCESS":
       return {
         ...state,
@@ -104,18 +105,19 @@ export default function Home() {
     if (!state.sourceImage) return;
 
     const fetchImages = async () => {
-      dispatch({ type: "FETCH_INITIAL_IMAGES_START" });
       try {
         const res = await fetch(`${API_BASE_URL}/get_images`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: state.sourceImage }),
         });
-        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        if (!res.ok) throw new Error("API error: " + res.status);
         const data = await res.json();
+        // Expecting { images: [...], sourceImageId: ... }
+        dispatch({ type: "FETCH_INITIAL_IMAGES_START", payload: { sourceImageId: data.sourceImageId } });
         dispatch({ type: "FETCH_INITIAL_IMAGES_SUCCESS", payload: data.images || [] });
       } catch (err) {
-        dispatch({ type: "FETCH_INITIAL_IMAGES_ERROR", payload: err.message });
+        dispatch({ type: "FETCH_INITIAL_IMAGES_ERROR", payload: (err as Error).message });
       }
     };
 
@@ -144,7 +146,7 @@ export default function Home() {
           const startRes = await fetch(`${API_BASE_URL}/process_image`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ index }),
+            body: JSON.stringify({ index, sourceImageId: state.sourceImageId }),
           });
           if (!startRes.ok) throw new Error("Server error on start");
           const { task_id } = await startRes.json();
@@ -187,7 +189,7 @@ export default function Home() {
           onChange={(image) => dispatch({ type: "SET_SOURCE_IMAGE", payload: image })}
         />
 
-        {state.isLoading && <div className="mt-6 text-blue-600">Processing...</div>}
+        {state.sourceImage && state.items.length === 0 && <div className="mt-6 text-blue-600">Processing...</div>}
         {state.error && <div className="mt-6 text-red-600">Error: {state.error}</div>}
       </div>
 
