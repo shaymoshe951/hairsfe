@@ -1,355 +1,216 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useReducer, useEffect, useState } from "react";
 import GradioImageUpload from "./components/GradioImageUpload";
+import ImageCard from "./components/ImageCard";
+
+const API_BASE_URL = "http://localhost:7861";
+
+// --- State Management with useReducer ---
+
+const initialState = {
+  sourceImage: null,
+  items: [],
+  isLoading: false,
+  error: null,
+  activeProcessingCount: 0,
+};
+
+function reducer(state, action) {
+  switch (action.type) {
+    case "SET_SOURCE_IMAGE":
+      return { ...initialState, sourceImage: action.payload };
+    case "FETCH_INITIAL_IMAGES_START":
+      return { ...state, isLoading: true, error: null, items: [] };
+    case "FETCH_INITIAL_IMAGES_SUCCESS":
+      return {
+        ...state,
+        isLoading: false,
+        items: action.payload.map((src) => ({
+          src,
+          progress: 0,
+          isProcessing: false,
+          isDone: false,
+          isFavorite: false,
+          taskId: null,
+        })),
+      };
+    case "FETCH_INITIAL_IMAGES_ERROR":
+      return { ...state, isLoading: false, error: action.payload };
+    case "TOGGLE_FAVORITE":
+      return {
+        ...state,
+        items: state.items.map((item, index) =>
+          index === action.payload
+            ? { ...item, isFavorite: !item.isFavorite }
+            : item
+        ),
+      };
+    case "PROCESS_START":
+      return {
+        ...state,
+        activeProcessingCount: state.activeProcessingCount + 1,
+        items: state.items.map((item, index) =>
+          index === action.payload.index
+            ? { ...item, isProcessing: true, taskId: action.payload.taskId }
+            : item
+        ),
+      };
+    case "PROCESS_PROGRESS":
+      return {
+        ...state,
+        items: state.items.map((item, index) =>
+          index === action.payload.index
+            ? { ...item, progress: action.payload.progress }
+            : item
+        ),
+      };
+    case "PROCESS_SUCCESS":
+      return {
+        ...state,
+        activeProcessingCount: state.activeProcessingCount - 1,
+        items: state.items.map((item, index) =>
+          index === action.payload.index
+            ? {
+                ...item,
+                src: action.payload.image,
+                isProcessing: false,
+                isDone: true,
+                progress: 100,
+              }
+            : item
+        ),
+      };
+    case "PROCESS_ERROR":
+      return {
+        ...state,
+        activeProcessingCount: state.activeProcessingCount - 1,
+        items: state.items.map((item, index) =>
+          index === action.payload.index
+            ? { ...item, isProcessing: false }
+            : item
+        ),
+      };
+    default:
+      throw new Error("Unhandled action type");
+  }
+}
+
+// --- Main Component ---
 
 export default function Home() {
-  const [image, setImage] = useState<string | null>(null);
-  const [resultImages, setResultImages] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [favorites, setFavorites] = useState<{ [idx: number]: boolean }>({});
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-  const [processing, setProcessing] = useState<{ progress: number; isProcessing: boolean; isDone: boolean; }[]>([]);
-  const [processingIndex, setProcessingIndex] = useState<number | null>(null);
-  const [selectVisible, setSelectVisible] = useState(false);
-  const processingRef = React.useRef<{ cancel: (() => void) | null; state: { [idx: number]: { progress: number; isProcessing: boolean; isDone: boolean; } } }>({ cancel: null, state: {} });
-  const favoritesRef = React.useRef<{ [idx: number]: boolean }>({});
-  const lastFavIdxRef = React.useRef<number | null>(null);
-  const queueRunning = React.useRef(false);
-  const [flagIsSourceUploaded, setFlagIsSourceUploaded] = useState(false);
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const [hoveredCard, setHoveredCard] = useState(null);
 
-  
-  const API_BASE_URL = "http://10.100.102.36:7861"; //"http://localhost:7860"
+  // Effect for fetching initial images when a source image is uploaded
+  useEffect(() => {
+    if (!state.sourceImage) return;
 
-  // Define processImage before useEffect
-  const processImage = async (idx: number) => {
-    setProcessingIndex(idx);
-    setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, isProcessing: true } : p));
-    let taskId = null;
-    try {
-      // Start processing and get task_id
-      // console.log("Processing image", idx);
-      const startRes = await fetch(`${API_BASE_URL}/process_image`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ index: idx }),
-      });
-      if (!startRes.ok) throw new Error("Server error");
-      const startData = await startRes.json();
-      taskId = startData.task_id;
-      // Poll for progress
-      let done = false;
-      let localDone = false;
-      while (!done && !localDone) {
-        if (processingRef.current.state?.[idx]?.isDone) { localDone = true; break; }
-        await new Promise(r => setTimeout(r, 300));
-        if (localDone) break;
-        const progRes = await fetch(`${API_BASE_URL}/progress?task_id=${taskId}`);
-        if (!progRes.ok) throw new Error("Progress error");
-        const progData = await progRes.json();
-        const percent = progData.progress ?? 0;
-        done = percent >= 100 || progData.done;
-        if (done) {
-          setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
-          localDone = true;
-          break;
-        }
-        if (!localDone) {
-          setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: percent, isProcessing: true } : p));
-        }
+    const fetchImages = async () => {
+      dispatch({ type: "FETCH_INITIAL_IMAGES_START" });
+      try {
+        const res = await fetch(`${API_BASE_URL}/get_images`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: state.sourceImage }),
+        });
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+        dispatch({ type: "FETCH_INITIAL_IMAGES_SUCCESS", payload: data.images || [] });
+      } catch (err) {
+        dispatch({ type: "FETCH_INITIAL_IMAGES_ERROR", payload: err.message });
       }
-      // Fetch result
-      const resultRes = await fetch(`${API_BASE_URL}/result?task_id=${taskId}`);
-      if (!resultRes.ok) throw new Error("Result error");
-      const resultData = await resultRes.json();
-      setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, progress: 100, isProcessing: false, isDone: true } : p));
-      setResultImages(prev => prev.map((img, i) => i === idx ? resultData.image : img));
-    } catch (e) {
-      console.log("Error processing image", idx, e);
-      setProcessing(prev => prev.map((p, i) => i === idx ? { ...p, isProcessing: false } : p));
-    } finally {
-      setProcessingIndex(null);
-      processingRef.current.cancel = null;
-    }
-  };
+    };
 
-  React.useEffect(() => {
-    if (!image) {
-      setResultImages([]);
+    fetchImages();
+  }, [state.sourceImage]);
+
+  // Effect for managing the background processing queue
+  useEffect(() => {
+    if (state.activeProcessingCount > 0) {
       return;
     }
-    setLoading(true);
-    setError(null);
-    fetch(`${API_BASE_URL}/get_images`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image }),
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error("API error: " + res.status);
-        const data = await res.json();
-        // Expecting { images: [base64, ...] }
-        if (Array.isArray(data.images)) {
-          setFlagIsSourceUploaded(true);
-          setResultImages(data.images);
-        } else {
-          setResultImages([]);
-        }
-      })
-      .catch((err) => {
-        setError(err.message || "Unknown error");
-        setResultImages([]);
-      })
-      .finally(() => setLoading(false));
-  }, [image]);
 
-//  Start background processing when resultImages change
-  React.useEffect(() => {
-    if (resultImages.length === 0 || !flagIsSourceUploaded) return;
-    setSelectVisible(false);
-    // console.log("Result images changed due to upload");
-    setProcessing(resultImages.map(() => ({ progress: 0, isProcessing: false, isDone: false })));
-    setFlagIsSourceUploaded(false);
-    // Remove runQueue from here
-    // let cancelled = false; ...
-    // runQueue();
-    // return () => { cancelled = true; };
-  }, [resultImages]);
+    const findNextItem = () => {
+      const favoriteItem = state.items.find(item => item.isFavorite && !item.isDone && !item.isProcessing);
+      if (favoriteItem) return state.items.indexOf(favoriteItem);
 
-  // Keep processingRef in sync with processing state
-  React.useEffect(() => {
-    processingRef.current.state = processing;
-  }, [processing]);
-
-  // New effect to sync favoritesRef
-  React.useEffect(() => {
-    favoritesRef.current = favorites;
-  }, [favorites]);
-
-  // New effect to start background processing when processing is ready
-  React.useEffect(() => {
-    if (
-      processing.length === 0 ||
-      processing.length !== resultImages.length ||
-      queueRunning.current
-    ) return;
-    queueRunning.current = true;
-    let cancelled = false;
-    const runQueue = async () => {
-      while (true) {
-        if (cancelled) break;
-        // Use Object.entries to get both index and value
-        const entries = Object.entries(processingRef.current.state);
-        const nextEntry = entries.find(([i, p]) => !p.isDone && !favoritesRef.current[+i]);
-        const nextIdx = nextEntry ? +nextEntry[0] : -1;
-        if (nextIdx === -1) break;
-        await processImage(nextIdx);
-        if (cancelled) break;
-      }
-      queueRunning.current = false;
+      const nextRegularItem = state.items.find(item => !item.isDone && !item.isProcessing);
+      if (nextRegularItem) return state.items.indexOf(nextRegularItem);
+      
+      return -1;
     };
-    runQueue();
-    return () => { cancelled = true; queueRunning.current = false; };
-  }, [processing.length, resultImages.length]);
 
-  // Handle favorite during processing
-  React.useEffect(() => {
-    // Find the first favorite that is not done
-    const favIdxEntry = Object.entries(favorites).find(([idx, val]) => val && (!processingRef.current.state[+idx]?.isDone));
-    const favIdx = favIdxEntry ? +favIdxEntry[0] : null;
-    // Only process if a new favorite is found and it's not already being processed or done
-    if (
-      favIdx !== null &&
-      favIdx !== processingIndex &&
-      favIdx !== lastFavIdxRef.current &&
-      !processingRef.current.state[favIdx]?.isDone
-    ) {
-      lastFavIdxRef.current = favIdx;
-      // Cancel current
-      if (processingRef.current.cancel) processingRef.current.cancel();
-      // Process favorite immediately
-      // Reuse processImage for favorite processing to unify logic
-      (async () => {
-        setProcessingIndex(favIdx);
+    const nextItemIndex = findNextItem();
+
+    if (nextItemIndex !== -1) {
+      const processItem = async (index) => {
+        let taskId;
         try {
-          await processImage(favIdx);
-        } finally {
-          setProcessingIndex(null);
-          processingRef.current.cancel = null;
+          const startRes = await fetch(`${API_BASE_URL}/process_image`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ index }),
+          });
+          if (!startRes.ok) throw new Error("Server error on start");
+          const { task_id } = await startRes.json();
+          taskId = task_id;
+          dispatch({ type: "PROCESS_START", payload: { index, taskId } });
+
+          let isDone = false;
+          while (!isDone) {
+            await new Promise((r) => setTimeout(r, 500));
+            if (!taskId) return;
+            const progRes = await fetch(`${API_BASE_URL}/progress?task_id=${taskId}`);
+            if (!progRes.ok) continue;
+            const progData = await progRes.json();
+            isDone = progData.done || progData.progress >= 100;
+            dispatch({ type: "PROCESS_PROGRESS", payload: { index, progress: progData.progress ?? 0 } });
+          }
+
+          const resultRes = await fetch(`${API_BASE_URL}/result?task_id=${taskId}`);
+          if (!resultRes.ok) throw new Error("Server error on result");
+          const { image } = await resultRes.json();
+          dispatch({ type: "PROCESS_SUCCESS", payload: { index, image } });
+        } catch (e) {
+          console.error(`Error processing image ${index}:`, e);
+          dispatch({ type: "PROCESS_ERROR", payload: { index } });
         }
-      })();
+      };
+      
+      processItem(nextItemIndex);
     }
-  }, [favorites, processing, processingIndex]);
+  }, [state.items, state.activeProcessingCount]);
 
   return (
-    <main style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 40 }}>
-      <h1>From Vision to Virtual – Your Hair, Reimagined</h1>
-      <h3 style={{ margin: 0, marginBottom: 32, fontWeight: 500, fontSize: 20, color: "#a67c52", letterSpacing: 0.2, fontFamily: 'system-ui, sans-serif' }}>
-        Style It. See It. Love It.
-      </h3>
-      <GradioImageUpload value={image} onChange={setImage} />
-      {loading && <div style={{ marginTop: 24, color: "#0070f3" }}>Processing...</div>}
-      {error && <div style={{ marginTop: 24, color: "#d00" }}>Error: {error}</div>}
-      {resultImages.length > 0 && (
-        <div
-          className="catalog-container"
-          style={{
-            marginTop: 32,
-            width: "100%",
-            maxWidth: 1200,
-            background: "#f7f5f2",
-            border: "none",
-            borderRadius: 18,
-            boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
-            padding: 32,
-            overflow: "hidden",
-            fontFamily: 'system-ui, sans-serif',
-          }}
-        >
-          <h2 style={{ margin: 0, marginBottom: 24, fontSize: 22, fontWeight: 700, color: "#6b4f36", letterSpacing: 0.5 }}>Choose your style</h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gridAutoRows: "240px",
-              gap: 36,
-              maxHeight: 544, // 2 rows of 240px cards + gap
-              overflowY: "auto",
-              paddingBottom: 8,
-              scrollbarWidth: "thin",
-              scrollbarColor: "#bbb #eee",
-              justifyItems: "center",
-              alignItems: "center",
-            }}
-          >
-            {resultImages.map((img, idx) => {
-              const isFav = !!favorites[idx];
-              const isHovered = hoveredCard === idx;
-              return (
-                <div
-                  key={idx}
-                  className="catalog-card"
-                  style={{
-                    width: 240,
-                    height: 240,
-                    background: "#fff",
-                    border: "none",
-                    borderRadius: 18,
-                    boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    padding: 20,
-                    transition: "box-shadow 0.2s, border 0.2s",
-                    minWidth: 0,
-                    justifyContent: "flex-start",
-                    position: "relative",
-                    cursor: "pointer",
-                    fontFamily: 'system-ui, sans-serif',
-                  }}
-                  onMouseOver={() => setHoveredCard(idx)}
-                  onMouseOut={() => setHoveredCard(null)}
-                >
-                  {/* Love icon button (show on hover or if favorited) */}
-                  {(isHovered || isFav) && (
-                    <button
-                      aria-label={isFav ? "Unfavorite" : "Favorite"}
-                      style={{
-                        position: "absolute",
-                        top: 16,
-                        right: 16,
-                        background: isFav ? "#ede7f6" : "#f7f5f2",
-                        border: "none",
-                        borderRadius: "50%",
-                        width: 36,
-                        height: 36,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 22,
-                        color: isFav ? "#7c4dff" : "#bbb",
-                        cursor: "pointer",
-                        boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
-                        transition: "color 0.2s, background 0.2s",
-                        zIndex: 2,
-                      }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        setFavorites(favs => ({ ...favs, [idx]: !favs[idx] }));
-                      }}
-                      onMouseOver={e => { e.currentTarget.style.color = "#7c4dff"; }}
-                      onMouseOut={e => { e.currentTarget.style.color = isFav ? "#7c4dff" : "#bbb"; }}
-                    >
-                      ♥
-                    </button>
-                  )}
-                  <img
-                    src={img}
-                    alt="Product"
-                    style={{
-                      width: "100%",
-                      height: 120,
-                      objectFit: "contain",
-                      borderRadius: 10,
-                      background: "#f7f5f2",
-                      marginBottom: 24,
-                      marginTop: 8,
-                    }}
-                  />
-                  {/* <button
-                    style={{
-                      width: "100%",
-                      padding: "10px 0",
-                      background: "#5c4432",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 8,
-                      fontWeight: 600,
-                      fontSize: 16,
-                      letterSpacing: 0.2,
-                      cursor: "not-allowed",
-                      opacity: 0.7,
-                      marginTop: "auto",
-                      marginBottom: 8,
-                      boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-                      transition: "background 0.2s",
-                    }}
-                    disabled
-                  >
-                    Select
-                  </button> */}
-                  {/* Progress bar placeholder (hidden by default) */}
-                  {processing[idx]?.isProcessing && !processing[idx]?.isDone && (
-                    <div style={{ width: "100%", height: 10, background: "#ede7f6", borderRadius: 5, marginTop: 8, overflow: "hidden" }}>
-                      <div style={{ width: `${processing[idx].progress}%`, height: "100%", background: "#7c4dff", borderRadius: 5, transition: "width 0.3s" }} />
-                    </div>
-                  )}
-                  {processing[idx]?.isDone && (
-                    <button
-                      style={{
-                        width: "100%",
-                        padding: "10px 0",
-                        background: "#5c4432",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 8,
-                        fontWeight: 600,
-                        fontSize: 16,
-                        letterSpacing: 0.2,
-                        cursor: "pointer",
-                        marginTop: "auto",
-                        marginBottom: 8,
-                        boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-                        transition: "background 0.2s",
-                      }}
-                    >
-                      Select
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+    <main style={styles.main}>
+      <div style={styles.headerContainer}>
+        <h1>From Vision to Virtual – Your Hair, Reimagined</h1>
+        <h3 style={styles.subtitle}>Style It. See It. Love It.</h3>
+        
+        <GradioImageUpload
+          value={state.sourceImage}
+          onChange={(image) => dispatch({ type: "SET_SOURCE_IMAGE", payload: image })}
+        />
+        
+        {state.isLoading && <div style={styles.statusText}>Processing...</div>}
+        {state.error && <div style={styles.errorText}>Error: {state.error}</div>}
+      </div>
+
+      {state.items.length > 0 && (
+        <div className="catalog-container">
+          <h2 style={styles.catalogTitle}>Choose your style</h2>
+          <div className="grid" style={styles.grid}>
+            {state.items.map((item, idx) => (
+              <ImageCard
+                key={idx}
+                item={item}
+                isHovered={hoveredCard === idx}
+                onHover={() => setHoveredCard(idx)}
+                onFavoriteToggle={() => dispatch({ type: "TOGGLE_FAVORITE", payload: idx })}
+                onSelect={() => console.log("Selected item:", idx)}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -357,20 +218,50 @@ export default function Home() {
   );
 }
 
-// Add responsive CSS for the catalog container
-if (typeof window !== "undefined") {
-  const styleId = "catalog-responsive-style";
-  if (!document.getElementById(styleId)) {
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.innerHTML = `
-      @media (max-width: 1300px) {
-        .catalog-container { max-width: 100vw !important; }
-      }
-      @media (max-width: 900px) {
-        .catalog-container { max-width: 100vw !important; padding: 12px !important; }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-}
+// --- Styles ---
+const styles = {
+  main: {
+    display: 'flex',
+    flexDirection: 'column',
+    width: '100%',
+  },
+  headerContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '40px 20px 0 20px',
+    textAlign: 'center',
+  },
+  subtitle: {
+    margin: "0 0 32px",
+    fontWeight: 500,
+    fontSize: 20,
+    color: "#a67c52",
+    letterSpacing: 0.2,
+    fontFamily: "system-ui, sans-serif",
+  },
+  statusText: {
+    marginTop: 24,
+    color: "#0070f3",
+  },
+  errorText: {
+    marginTop: 24,
+    color: "#d00",
+  },
+  catalogTitle: {
+    margin: "0 0 24px",
+    fontSize: 22,
+    fontWeight: 700,
+    color: "#6b4f36",
+    letterSpacing: 0.5,
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+    gap: 36,
+    maxHeight: "60vh",
+    overflowY: "auto",
+    padding: "0 8px 8px 0",
+    justifyItems: "center",
+  },
+};

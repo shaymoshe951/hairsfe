@@ -121,6 +121,6 @@ def run_image_processing(task_id):
 
 
 if __name__ == "__main__":
-    # app.run(host="localhost", port=7860)
-    app.run(host="10.100.102.36", port=7861)
+    app.run(host="localhost", port=7861)
+    # app.run(host="10.100.102.36", port=7861)
 
