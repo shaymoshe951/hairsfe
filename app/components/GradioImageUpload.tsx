@@ -1,3 +1,4 @@
+// GradioImageUpload.tsx
 "use client";
 import React, { useRef, useState } from "react";
 
@@ -132,4 +133,4 @@ export default function GradioImageUpload({ value, onChange, height = 300, maxWi
       )}
     </div>
   );
-} 
+}

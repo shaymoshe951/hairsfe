@@ -1,5 +1,19 @@
-/* Add this to your existing globals.css file */
+/* globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* Custom global styles for layout enhancement */
+@layer base {
+  :root {
+    --primary: 252 83% 67%;
+    --accent: 32 100% 50%;
+    --text-dark: 30 8% 15%;
+    --text-light: 30 8% 60%;
+    --background: 30 8% 97%;
+    --card: 0 0% 100%;
+  }
+}
 .catalog-container {
   /* Default state: centered, with a max-width */
   width: 100%;

@@ -1,3 +1,4 @@
+// ImageCard.tsx
 // app/components/ImageCard.js
 import React from "react";
 
