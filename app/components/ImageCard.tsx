@@ -1,5 +1,3 @@
-// ImageCard.tsx
-// app/components/ImageCard.js
 import React from "react";
 
 const ImageCard = ({
@@ -14,7 +12,7 @@ const ImageCard = ({
 
   return (
     <div
-      style={styles.card}
+      className="w-[240px] h-[240px] bg-white border-none rounded-[18px] shadow-[0_4px_24px_rgba(0,0,0,0.07)] flex flex-col items-center justify-between p-[20px] relative cursor-pointer transition-[box-shadow] duration-200 font-[system-ui,sans-serif]"
       onMouseOver={onHover}
       onMouseOut={() => onHover(null)}
       onClick={isDone ? onSelect : undefined}
@@ -22,11 +20,7 @@ const ImageCard = ({
       {showFavoriteButton && (
         <button
           aria-label={isFavorite ? "Unfavorite" : "Favorite"}
-          style={{
-            ...styles.favoriteButton,
-            background: isFavorite ? "#ede7f6" : "#f7f5f2",
-            color: isFavorite ? "#7c4dff" : "#bbb",
-          }}
+          className={`absolute top-[16px] right-[16px] border-none rounded-full w-[36px] h-[36px] flex items-center justify-center text-[22px] cursor-pointer shadow-[0_1px_4px_rgba(0,0,0,0.07)] transition-[color,background] duration-200 z-[2] ${isFavorite ? "bg-[#ede7f6] text-[#7c4dff]" : "bg-[#f7f5f2] text-[#bbb]"}`}
           onClick={(e) => {
             e.stopPropagation(); // Prevent card click
             onFavoriteToggle();
@@ -36,94 +30,27 @@ const ImageCard = ({
         </button>
       )}
 
-      <img src={src} alt="Style" style={styles.cardImage} />
+      <img src={src} alt="Style" className="w-full h-[140px] object-contain rounded-[10px] bg-[#f7f5f2]" />
 
       {isProcessing && !isDone && (
-        <div style={styles.progressBarContainer}>
+        <div className="w-full h-[10px] bg-[#ede7f6] rounded-[5px] overflow-hidden">
           <div
-            style={{ ...styles.progressBar, width: `${progress}%` }}
+            className="h-full bg-[#7c4dff] rounded-[5px] transition-[width] duration-[0.3s] ease-in-out"
+            style={{ width: `${progress}%` }}
           />
         </div>
       )}
 
       {isDone && (
-        <button style={styles.selectButton} onClick={onSelect}>
+        <button
+          className="w-full py-[10px] bg-[#5c4432] text-[#fff] border-none rounded-[8px] font-[600] text-[16px] leading-[16px] cursor-pointer shadow-[0_1px_4px_rgba(0,0,0,0.04)] transition-[background] duration-200"
+          onClick={onSelect}
+        >
           Select
         </button>
       )}
     </div>
   );
-};
-
-// Styles for the ImageCard component
-const styles = {
-  card: {
-    width: 240,
-    height: 240,
-    background: "#fff",
-    border: "none",
-    borderRadius: 18,
-    boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 20,
-    position: "relative",
-    cursor: "pointer",
-    transition: "box-shadow 0.2s",
-    fontFamily: "system-ui, sans-serif",
-  },
-  favoriteButton: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    border: "none",
-    borderRadius: "50%",
-    width: 36,
-    height: 36,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 22,
-    cursor: "pointer",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
-    transition: "color 0.2s, background 0.2s",
-    zIndex: 2,
-  },
-  cardImage: {
-    width: "100%",
-    height: 140,
-    objectFit: "contain",
-    borderRadius: 10,
-    background: "#f7f5f2",
-  },
-  progressBarContainer: {
-    width: "100%",
-    height: 10,
-    background: "#ede7f6",
-    borderRadius: 5,
-    overflow: "hidden",
-  },
-  progressBar: {
-    height: "100%",
-    background: "#7c4dff",
-    borderRadius: 5,
-    transition: "width 0.3s ease-in-out",
-  },
-  selectButton: {
-    width: "100%",
-    padding: "10px 0",
-    background: "#5c4432",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    fontWeight: 600,
-    fontSize: 16,
-    cursor: "pointer",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-    transition: "background 0.2s",
-  },
 };
 
 export default ImageCard;
