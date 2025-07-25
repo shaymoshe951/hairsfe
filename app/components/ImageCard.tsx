@@ -15,7 +15,7 @@ const ImageCard = ({
       className="w-[240px] h-[240px] bg-white border-none rounded-[18px] shadow-[0_4px_24px_rgba(0,0,0,0.07)] flex flex-col items-center justify-between p-[20px] relative cursor-pointer transition-[box-shadow] duration-200 font-[system-ui,sans-serif]"
       onMouseOver={onHover}
       onMouseOut={() => onHover(null)}
-      onClick={isDone ? onSelect : undefined}
+      // onClick={isDone ? onSelect : undefined}
     >
       {showFavoriteButton && (
         <button

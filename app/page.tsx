@@ -5,6 +5,7 @@
 import React, { useReducer, useEffect, useState } from "react";
 import GradioImageUpload from "./components/GradioImageUpload";
 import ImageCard from "./components/ImageCard";
+import SelectedImageTab from "./components/SelectedImageTab";
 
 const API_BASE_URL = "http://localhost:7860";
 
@@ -100,6 +101,8 @@ function reducer(state: any, action: any) {
 export default function Home() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [hoveredCard, setHoveredCard] = useState(null);
+  const [tabs, setTabs] = useState<Array<{ id: string; imageSrc: string; title: string }>>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!state.sourceImage) return;
@@ -178,37 +181,137 @@ export default function Home() {
     }
   }, [state.items, state.activeProcessingCount]);
 
+  const handleSelectImage = (imageSrc: string, index: number) => {
+    // Check if a tab for this image already exists
+    const existingTab = tabs.find(tab => tab.imageSrc === imageSrc);
+    if (existingTab) {
+      console.log("Existing tab found", existingTab);
+      setActiveTabId(existingTab.id);
+      return;
+    }
+    // Otherwise, create a new tab
+    const tabId = `tab-${index}-${Math.random().toString(36).slice(2, 10)}`;
+    const newTab = {
+      id: tabId,
+      imageSrc,
+      title: `Style ${index + 1}`
+    };
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(tabId);
+  };
+
+  const handleCloseTab = (tabId: string) => {
+    setTabs(prev => prev.filter(tab => tab.id !== tabId));
+    if (activeTabId === tabId) {
+      setActiveTabId(tabs.length > 1 ? tabs[tabs.length - 2]?.id || null : null);
+    }
+  };
+
+  const activeTab = tabs.find(tab => tab.id === activeTabId);
+
   return (
-    <main className="flex flex-col w-full">
+    <main className="flex flex-col w-full h-screen">
       <div className="flex flex-col items-center px-5 pt-10 text-center">
         <h1 className="text-4xl font-bold text-gray-900">From Vision to Virtual – Your Hair, Reimagined</h1>
         <h3 className="mt-2 mb-8 text-xl font-medium text-primary">Style It. See It. Love It.</h3>
-
-        <GradioImageUpload
-          value={state.sourceImage}
-          onChange={(image) => dispatch({ type: "SET_SOURCE_IMAGE", payload: image })}
-        />
-
-        {state.sourceImage && state.items.length === 0 && <div className="mt-6 text-blue-600">Processing...</div>}
-        {state.error && <div className="mt-6 text-red-600">Error: {state.error}</div>}
       </div>
 
-      {state.items.length > 0 && (
-        <section className="catalog-container">
-          <h2 className="text-xl font-semibold text-accent mb-6">Choose your style</h2>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-9 max-h-[60vh] overflow-y-auto">
-            {state.items.map((item: any, idx: any) => (
-              <ImageCard
-                key={idx}
-                item={item}
-                isHovered={hoveredCard === idx}
-                onHover={() => setHoveredCard(idx)}
-                onFavoriteToggle={() => dispatch({ type: "TOGGLE_FAVORITE", payload: idx })}
-                onSelect={() => console.log("Selected item:", idx)}
-              />
-            ))}
+      {activeTab ? (
+        // Tabbed interface
+        <div className="flex flex-1">
+          {/* Navigation Panel */}
+          <div className="w-64 bg-gray-50 border-r border-gray-200 p-4">
+            <button
+              onClick={() => setActiveTabId(null)}
+              className="w-full mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center text-3xl"
+              title="Back to Catalog"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="feather feather-home"
+                aria-label="Home"
+              >
+                <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-4H9v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V9.5z" />
+              </svg>
+            </button>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">My Styles</h3>
+            <div className="space-y-2">
+              {tabs.map((tab) => (
+                <div
+                  key={tab.id}
+                  className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
+                    activeTabId === tab.id ? 'bg-blue-100 border border-blue-300' : 'bg-white border border-gray-200 hover:bg-gray-50'
+                  }`}
+                  onClick={() => setActiveTabId(tab.id)}
+                >
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center overflow-hidden rounded">
+                      <img
+                        src={tab.imageSrc}
+                        alt={tab.title}
+                        style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 6, display: "block" }}
+                      />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700 truncate">{tab.title}</span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCloseTab(tab.id);
+                    }}
+                    className="text-gray-400 hover:text-red-500 ml-2"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </section>
+
+          {/* Tab Content */}
+          <div className="flex-1 p-6">
+            <SelectedImageTab imageSrc={activeTab.imageSrc} title={activeTab.title} />
+          </div>
+        </div>
+      ) : (
+        // Main catalog view
+        <div className="flex-1 px-5 flex flex-col items-center">
+          <div className="w-full max-w-2xl">
+            <GradioImageUpload
+              value={state.sourceImage}
+              onChange={(image) => dispatch({ type: "SET_SOURCE_IMAGE", payload: image })}
+            />
+
+            {state.sourceImage && state.items.length === 0 && <div className="mt-6 text-blue-600 text-center">Processing...</div>}
+            {state.error && <div className="mt-6 text-red-600 text-center">Error: {state.error}</div>}
+          </div>
+
+          {state.items.length > 0 && (
+            <section className="catalog-container w-full">
+              <h2 className="text-xl font-semibold text-accent mb-6 text-center">Choose your style</h2>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-9 max-h-[60vh] overflow-y-auto">
+                {state.items.map((item: any, idx: any) => (
+                  <ImageCard
+                    key={idx}
+                    item={item}
+                    isHovered={hoveredCard === idx}
+                    onHover={() => setHoveredCard(idx)}
+                    onFavoriteToggle={() => dispatch({ type: "TOGGLE_FAVORITE", payload: idx })}
+                    onSelect={() => handleSelectImage(item.src, idx)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
       )}
     </main>
   );

@@ -78,6 +78,7 @@ export default function GradioImageUpload({ value, onChange, height = 300, maxWi
         cursor: "pointer",
         transition: "border 0.2s, background 0.2s",
         position: "relative",
+        margin: "0 auto", // Center the component horizontally
       }}
     >
       <input
