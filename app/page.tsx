@@ -216,10 +216,10 @@ export default function Home() {
         <h3 className="mt-2 mb-8 text-xl font-medium text-primary">Style It. See It. Love It.</h3>
       </div>
 
-      {activeTab ? (
-        // Tabbed interface
-        <div className="flex flex-1">
-          {/* Navigation Panel */}
+      {/* Main layout: sidebar always visible */}
+      <div className="flex flex-1">
+        {/* Navigation Panel */}
+        {tabs.length > 0 && (
           <div className="w-64 bg-gray-50 border-r border-gray-200 p-4">
             <button
               onClick={() => setActiveTabId(null)}
@@ -275,44 +275,45 @@ export default function Home() {
               ))}
             </div>
           </div>
+        )}
 
-          {/* Tab Content */}
-          <div className="flex-1 p-6">
+        {/* Main Content Area */}
+        <div className={`flex-1 p-6 ${tabs.length === 0 ? '' : ''}`}>
+          {activeTab ? (
             <SelectedImageTab imageSrc={activeTab.imageSrc} title={activeTab.title} />
-          </div>
-        </div>
-      ) : (
-        // Main catalog view
-        <div className="flex-1 px-5 flex flex-col items-center">
-          <div className="w-full max-w-2xl">
-            <GradioImageUpload
-              value={state.sourceImage}
-              onChange={(image) => dispatch({ type: "SET_SOURCE_IMAGE", payload: image })}
-            />
+          ) : (
+            <div className="flex flex-col items-center">
+              <div className="w-full max-w-2xl">
+                <GradioImageUpload
+                  value={state.sourceImage}
+                  onChange={(image) => dispatch({ type: "SET_SOURCE_IMAGE", payload: image })}
+                />
 
-            {state.sourceImage && state.items.length === 0 && <div className="mt-6 text-blue-600 text-center">Processing...</div>}
-            {state.error && <div className="mt-6 text-red-600 text-center">Error: {state.error}</div>}
-          </div>
-
-          {state.items.length > 0 && (
-            <section className="catalog-container w-full">
-              <h2 className="text-xl font-semibold text-accent mb-6 text-center">Choose your style</h2>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-9 max-h-[60vh] overflow-y-auto">
-                {state.items.map((item: any, idx: any) => (
-                  <ImageCard
-                    key={idx}
-                    item={item}
-                    isHovered={hoveredCard === idx}
-                    onHover={() => setHoveredCard(idx)}
-                    onFavoriteToggle={() => dispatch({ type: "TOGGLE_FAVORITE", payload: idx })}
-                    onSelect={() => handleSelectImage(item.src, idx)}
-                  />
-                ))}
+                {state.sourceImage && state.items.length === 0 && <div className="mt-6 text-blue-600 text-center">Processing...</div>}
+                {state.error && <div className="mt-6 text-red-600 text-center">Error: {state.error}</div>}
               </div>
-            </section>
+
+              {state.items.length > 0 && (
+                <section className="catalog-container w-full">
+                  <h2 className="text-xl font-semibold text-accent mb-6 text-center">Choose your style</h2>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-9 max-h-[60vh] overflow-y-auto">
+                    {state.items.map((item: any, idx: any) => (
+                      <ImageCard
+                        key={idx}
+                        item={item}
+                        isHovered={hoveredCard === idx}
+                        onHover={() => setHoveredCard(idx)}
+                        onFavoriteToggle={() => dispatch({ type: "TOGGLE_FAVORITE", payload: idx })}
+                        onSelect={() => handleSelectImage(item.src, idx)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
     </main>
   );
 }
