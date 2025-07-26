@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useReducer, useEffect, useState } from "react";
+import Image from "next/image";
 import GradioImageUpload from "./components/GradioImageUpload";
 import ImageCard from "./components/ImageCard";
 import SelectedImageTab from "./components/SelectedImageTab";
@@ -254,10 +255,12 @@ export default function Home() {
                 >
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
                     <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center overflow-hidden rounded">
-                      <img
+                      <Image
                         src={tab.imageSrc}
                         alt={tab.title}
-                        style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 6, display: "block" }}
+                        width={32}
+                        height={32}
+                        style={{ objectFit: "cover", borderRadius: 6, display: "block" }}
                       />
                     </div>
                     <span className="text-sm font-medium text-gray-700 truncate">{tab.title}</span>
