@@ -1,11 +1,11 @@
 import React from "react";
 
 const ImageCard = ({
-  item,
-  isHovered,
-  onHover,
-  onFavoriteToggle,
-  onSelect,
+  item : any,
+  isHovered : boolean,
+  onHover : any,
+  onFavoriteToggle : any,
+  onSelect : any,
 }) => {
   const { src, progress, isProcessing, isDone, isFavorite } = item;
   const showFavoriteButton = isHovered || isFavorite;
