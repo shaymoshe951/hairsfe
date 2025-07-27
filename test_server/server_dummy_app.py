@@ -1,14 +1,9 @@
-import hashlib
+# server_dummy_app.py
+import time
 
-import redis
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from server_celery_app import app as celery_app
-from server_tasks import run_ml_task, upload_source_image_task, MODEL_REGISTRY
-from celery.result import AsyncResult
-import base64
+from server_tasks import run_ml_task, MODEL_REGISTRY, TaskManager
 
 app = FastAPI(title="ML Task Server",
               description="API for managing ML model tasks with progress, cancellation, and image upload")
@@ -22,71 +17,44 @@ app.add_middleware(
     allow_headers=["*"],     # Allow all headers; or specify relevant ones like ["Content-Type"]
 )
 
-# # Optional: Pydantic model for params (for better validation)
-# class Params(BaseModel):
-#     # Define your expected params structure here, e.g.,
-#     input_data: dict  # Or specific fields
-
+task_manager = TaskManager()
 
 @app.post("/start/{model_name}", status_code=202)
 def start_task(model_name: str, params: dict):  # Use dict for flexibility, or Params for validation
     if model_name not in MODEL_REGISTRY.keys():  # Validate model_name
         raise HTTPException(status_code=400, detail="Invalid model name")
-    task = run_ml_task.delay(model_name, params)
-    return {"task_id": task.id}
-
+    task_id = task_manager.submit(run_ml_task, model_name, params)
+    return {"task_id": task_id}
 
 @app.post("/upload_source_image", status_code=202)
 async def upload_source_image(file: UploadFile = File(...)):
     # Restrict to image types if needed
+    # Measure time taken to upload
+    start_time = time.time()
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
     try:
         image_data = await file.read()
-        image_base64 = base64.b64encode(image_data).decode('utf-8')
-        source_image_id = hashlib.sha256(image_data).hexdigest()
-        model = MODEL_REGISTRY['model_ht'] # Assuming model_hairtransfer is the only one for image upload
-        target_style_images = model.upload_source_image(image_data)  # Directly call the model method
-        # task = upload_source_image_task.delay('model_a', image_base64)
-        # return {"task_id": task.id}
+        model = MODEL_REGISTRY['model_ht']  # Assuming model_ht is the only one for image upload
+        target_style_images, source_image_id = model.upload_source_image(image_data)  # Directly call the model method
+        elapsed_time = time.time() - start_time
+        print(f"Image upload and processing took {elapsed_time:.2f} seconds")
         return {
-        "images": target_style_images,
-        "sourceImageId": source_image_id
-    }
+            "images": target_style_images,
+            "sourceImageId": source_image_id
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
-
 @app.get("/status/{task_id}")
 def get_status(task_id: str):
-    task = AsyncResult(task_id, app=celery_app)
-    if task.state == 'PENDING':
-        response = {'status': 'Pending', 'progress': 0}
-    elif task.state == 'PROGRESS':
-        response = {'status': 'In Progress', 'progress': task.info.get('progress', 0)}
-    elif task.state == 'FAILURE':
-        response = {'status': 'Failed', 'error': str(task.info)}
-    elif task.state == 'REVOKED':
-        response = {'status': 'Canceled'}
-    else:  # SUCCESS
-        response = {'status': 'Completed', 'result': task.info}
-    return response
-
+    return task_manager.get_status(task_id)
 
 @app.post("/cancel/{task_id}")
 def cancel_task(task_id: str):
-    # task = AsyncResult(task_id, app=celery_app)
-    # if task.status == 'REVOKED':
-    #     raise HTTPException(status_code=400, detail="Task already canceled")
-    # task.revoke(terminate=False)  # Graceful revocation
-    r = redis.Redis.from_url(app.conf.broker_url)  # Connect to Redis
-    r.sadd('tasks.revoked', task_id)  # Add task ID to a revoked set
-    app.control.revoke(task_id, terminate=False)  # Standard revoke (no kill)
-    return {"status": "Cancel requested"}
-
+    return task_manager.cancel(task_id)
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)

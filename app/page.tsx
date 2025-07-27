@@ -158,20 +158,30 @@ export default function Home() {
           dispatch({ type: "PROCESS_START", payload: { index, taskId } });
 
           let isDone = false;
+          let progData: any = {};
           while (!isDone) {
             await new Promise((r) => setTimeout(r, 500));
             if (!taskId) return;
-            const progRes = await fetch(`${API_BASE_URL}/status/task_id=${taskId}`);
+            const progRes = await fetch(`${API_BASE_URL}/status/${taskId}`);
             if (!progRes.ok) continue;
-            const progData = await progRes.json();
-            isDone = progData.done || progData.progress >= 100;
+            progData = await progRes.json();
+            isDone = progData.done  || (progData.progress >= 100);
             dispatch({ type: "PROCESS_PROGRESS", payload: { index, progress: progData.progress ?? 0 } });
           }
+          console.log('Done; status=', progData.status, 'done=', progData.done, 'progress=', progData.progress)  
+          if (progData.status === "Failed") {
+            console.error(`Error processing image ${index}:`, progData.error);
+            dispatch({ type: "PROCESS_ERROR", payload: { index, error: progData.error } });          
+          } else if (progData.status === "Completed") {
+            const image = progData.result; // fastAPI now returns {status, result, done}
+            dispatch({ type: "PROCESS_SUCCESS", payload: { index, image } });
+          } else if (progData.status === "Canceled") {
+            console.error(`Canceled processing image ${index}`);
+            dispatch({ type: "PROCESS_ERROR", payload: { index, error: "Canceled" } });
+          } else {
+            throw new Error("Unknown status: " + progData.status);
+          }
 
-          const resultRes = await fetch(`${API_BASE_URL}/result?task_id=${taskId}`);
-          if (!resultRes.ok) throw new Error("Server error on result");
-          const { image } = await resultRes.json();
-          dispatch({ type: "PROCESS_SUCCESS", payload: { index, image } });
         } catch (e) {
           console.error(`Error processing image ${index}:`, e);
           dispatch({ type: "PROCESS_ERROR", payload: { index } });

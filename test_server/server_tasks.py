@@ -1,62 +1,111 @@
-import base64
+# server_tasks.py
+import concurrent.futures
+import threading
+import uuid
+import time  # If needed for simulation
 
-from server_celery_app import app as celery_app
-from celery import current_task
-from celery.exceptions import TaskRevokedError, Ignore
-from celery.result import AsyncResult
-# Add other model imports as needed
 from server_model_hairtransfer import ModelHairTransfer
-import redis
-from server_celery_app import app as celery_app
-
 
 # Registry for models (expand as needed)
 MODEL_REGISTRY = {
     'model_ht': ModelHairTransfer(),
 }
 
-__r__ = redis.Redis.from_url(celery_app.conf.broker_url)  # Connect to Redis
-def cancel_check_callback(task):
-    if __r__.sismember('tasks.revoked', task.request.id.encode()):  # Check if revoked
-        # Optional: Cleanup logic here (e.g., release resources)
-        __r__.srem('tasks.revoked', task.request.id.encode())  # Clean up entry
-        raise Ignore()
+class TaskRevokedError(Exception):
+    pass
 
-@celery_app.task(bind=True)
-def run_ml_task(self, model_name, params):
+class TaskManager:
+    def __init__(self):
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)  # Adjustable
+        self.tasks = {}  # task_id: dict of task info
+        self.lock = threading.Lock()  # Global lock for tasks dict
+
+    def submit(self, fn, *args, **kwargs):
+        task_id = str(uuid.uuid4())
+        task = {
+            'state': 'PENDING',
+            'progress': 0,
+            'result': None,
+            'error': None,
+            'cancel_flag': False,
+            'lock': threading.Lock()  # Per-task lock
+        }
+
+        def progress_callback(progress):
+            with task['lock']:
+                task['progress'] = progress
+                if task['state'] == 'PENDING':
+                    task['state'] = 'PROGRESS'
+
+        def cancel_check_callback():
+            with task['lock']:
+                if task['cancel_flag']:
+                    raise TaskRevokedError("Task canceled")
+
+        def wrapped():
+            try:
+                result = fn(*args, **kwargs, progress_callback=progress_callback, cancel_check_callback=cancel_check_callback)
+                with task['lock']:
+                    task['state'] = 'COMPLETED'
+                    task['result'] = result
+            except TaskRevokedError:
+                with task['lock']:
+                    task['state'] = 'CANCELED'
+            except Exception as e:
+                with task['lock']:
+                    task['state'] = 'FAILED'
+                    task['error'] = str(e)
+
+        future = self.executor.submit(wrapped)
+        task['future'] = future
+
+        with self.lock:
+            self.tasks[task_id] = task
+
+        return task_id
+
+    def get_status(self, task_id):
+        with self.lock:
+            if task_id not in self.tasks:
+                return {'status': 'Unknown'}
+            task = self.tasks[task_id]
+
+        with task['lock']:
+            state = task['state']
+            print(state)
+            if state == 'PENDING':
+                return {'status': 'Pending', 'progress': 0, 'done': False}
+            elif state == 'PROGRESS':
+                return {'status': 'In Progress', 'progress': task['progress'], 'done': False}
+            elif state == 'FAILED':
+                return {'status': 'Failed', 'error': task['error'], 'done': True}
+            elif state == 'CANCELED':
+                return {'status': 'Canceled', 'done': True}
+            elif state == 'COMPLETED':
+                return {'status': 'Completed', 'result': task['result'], 'done': True, 'progress': 100}
+
+    def cancel(self, task_id):
+        with self.lock:
+            if task_id not in self.tasks:
+                raise ValueError("Task not found")
+            task = self.tasks[task_id]
+
+        with task['lock']:
+            if task['state'] in ('COMPLETED', 'FAILED', 'CANCELED'):
+                return {"status": "Task already finished or canceled"}
+            task['cancel_flag'] = True
+            task['future'].cancel()  # Attempt to cancel, may not work if running
+
+        return {"status": "Cancel requested"}
+
+def run_ml_task(model_name, params, progress_callback, cancel_check_callback):
     if model_name not in MODEL_REGISTRY:
         raise ValueError("Invalid model")
 
     model = MODEL_REGISTRY[model_name]
 
-    def progress_callback(progress):
-        self.update_state(state='PROGRESS', meta={'progress': progress})
-
     try:
-        result = model.run(params, progress_callback, lambda : cancel_check_callback(self))
+        result = model.run(params, progress_callback, cancel_check_callback)
         return result
-    except TaskRevokedError as e:
-        # Optional: Cleanup if needed
-        raise  # Let Celery mark as REVOKED
     except Exception as e:
         raise ValueError(f"Task failed: {str(e)}")
-
-
-@celery_app.task(bind=True)
-def upload_source_image_task(self, model_name, image_base64: str):
-    if model_name != 'model_ht':  # Restrict to ModelA
-        raise ValueError("Source Image upload only available for model_hairtransfer")
-
-    model = MODEL_REGISTRY[model_name]
-
-    def progress_callback(progress):
-        self.update_state(state='PROGRESS', meta={'progress': progress})
-
-    try:
-        image_data = base64.b64decode(image_base64)
-        result = model.process_image(image_data, progress_callback, lambda : cancel_check_callback(self))
-        return result
-    except TaskRevokedError as e:
-        raise
-    except Exception as e:
-        raise ValueError(f"Image task failed: {str(e)}")
