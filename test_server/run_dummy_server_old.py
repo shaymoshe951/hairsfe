@@ -29,8 +29,8 @@ def load_images(results_dir):
                     images.append(f"data:image/jpeg;base64,{img_data}")
     return images
 
-@app.route("/get_images", methods=["POST"])
-def get_images():
+@app.route("/upload_source_image", methods=["POST"])
+def upload_source_image():
     print("Received a request to process an image")
     # Get the input image from request
     data = request.json
@@ -60,8 +60,8 @@ def get_images():
         "sourceImageId": source_image_id
     })
 
-@app.route("/process_image", methods=["POST"])
-def process_image():
+@app.route("/start/model_ht", methods=["POST"])
+def model_ht_start():
     # Get the image index and sourceImageId from request
     data = request.json
     if not data or 'index' not in data:
@@ -147,6 +147,6 @@ def run_image_processing(task_id):
 
 
 if __name__ == "__main__":
-    app.run(host="localhost", port=7860)
-    # app.run(host="10.100.102.36", port=7861)
+    app.run(host="localhost", port=8000)
+    # app.run(host="10.100.102.36", port=8000)
 

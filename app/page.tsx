@@ -8,7 +8,7 @@ import GradioImageUpload from "./components/GradioImageUpload";
 import ImageCard from "./components/ImageCard";
 import SelectedImageTab from "./components/SelectedImageTab";
 
-const API_BASE_URL = "http://localhost:7860";
+const API_BASE_URL = "http://localhost:8000";
 
 const initialState = {
   sourceImage: null,
@@ -110,10 +110,10 @@ export default function Home() {
 
     const fetchImages = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/get_images`, {
+        const res = await fetch(`${API_BASE_URL}/upload_source_image`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: state.sourceImage }),
+          headers: undefined,
+          body: dataURLtoFormData(state.sourceImage),
         });
         if (!res.ok) throw new Error("API error: " + res.status);
         const data = await res.json();
@@ -147,7 +147,7 @@ export default function Home() {
       const processItem = async (index: number) => {
         let taskId;
         try {
-          const startRes = await fetch(`${API_BASE_URL}/process_image`, {
+          const startRes = await fetch(`${API_BASE_URL}/start/model_ht`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ index, sourceImageId: state.sourceImageId }),
@@ -161,7 +161,7 @@ export default function Home() {
           while (!isDone) {
             await new Promise((r) => setTimeout(r, 500));
             if (!taskId) return;
-            const progRes = await fetch(`${API_BASE_URL}/progress?task_id=${taskId}`);
+            const progRes = await fetch(`${API_BASE_URL}/status/task_id=${taskId}`);
             if (!progRes.ok) continue;
             const progData = await progRes.json();
             isDone = progData.done || progData.progress >= 100;
@@ -319,4 +319,33 @@ export default function Home() {
       </div>
     </main>
   );
+}
+
+function dataURLtoFormData(sourceImage: string): FormData {
+  // sourceImage is expected to be a data URL (e.g., "data:image/png;base64,...")
+  // Convert it to a Blob and append to FormData as "file"
+  if (!sourceImage.startsWith("data:image/")) {
+    throw new Error("Source image must be a data URL of an image");
+  }
+
+  // Split the data URL
+  const [header, base64] = sourceImage.split(",");
+  const match = header.match(/data:(image\/[a-zA-Z0-9.+-]+);base64/);
+  if (!match) {
+    throw new Error("Invalid data URL format");
+  }
+  const mimeType = match[1];
+
+  // Decode base64 to binary
+  const binary = atob(base64);
+  const array = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    array[i] = binary.charCodeAt(i);
+  }
+  const blob = new Blob([array], { type: mimeType });
+
+  // Create FormData and append as "file"
+  const formData = new FormData();
+  formData.append("file", blob, "upload." + mimeType.split("/")[1]);
+  return formData;
 }
