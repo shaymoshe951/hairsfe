@@ -26,7 +26,7 @@ def start_task(model_name: str, params: dict):  # Use dict for flexibility, or P
     task_id = task_manager.submit(run_ml_task, model_name, params)
     return {"task_id": task_id}
 
-@app.post("/upload_source_image", status_code=202)
+@app.post("/upload_source_image")
 async def upload_source_image(file: UploadFile = File(...)):
     # Restrict to image types if needed
     # Measure time taken to upload

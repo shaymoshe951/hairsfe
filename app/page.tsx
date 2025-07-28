@@ -150,7 +150,7 @@ export default function Home() {
           const startRes = await fetch(`${API_BASE_URL}/start/model_ht`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ index, sourceImageId: state.sourceImageId }),
+            body: JSON.stringify({ index, source_image_id: state.sourceImageId }),
           });
           if (!startRes.ok) throw new Error("Server error on start");
           const { task_id } = await startRes.json();
