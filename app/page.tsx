@@ -8,6 +8,7 @@ import GradioImageUpload from "./components/GradioImageUpload";
 import ImageCard from "./components/ImageCard";
 import SelectedImageTab from "./components/SelectedImageTab";
 
+// const API_BASE_URL = "https://pipnam3nkqvb6u-8000.proxy.runpod.net";
 const API_BASE_URL = "http://localhost:8000";
 
 const initialState = {
@@ -118,8 +119,10 @@ export default function Home() {
         if (!res.ok) throw new Error("API error: " + res.status);
         const data = await res.json();
         // Expecting { images: [...], sourceImageId: ... }
+        console.log("data.sourceImageId=",data.sourceImageId )
         dispatch({ type: "FETCH_INITIAL_IMAGES_START", payload: { sourceImageId: data.sourceImageId } });
         dispatch({ type: "FETCH_INITIAL_IMAGES_SUCCESS", payload: data.images || [] });
+        console.log("data.images=", data.images.length )
       } catch (err) {
         dispatch({ type: "FETCH_INITIAL_IMAGES_ERROR", payload: (err as Error).message });
       }
