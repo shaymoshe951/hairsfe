@@ -9,6 +9,15 @@ from PIL import Image  # Requires Pillow library, but since it's a test, assume 
 # Base URL for the API server (assuming it's running on localhost:8000)
 BASE_URL = "http://localhost:8000"
 
+# === Utility Functions ===
+def image_from_base64(base64_str):
+    image_data = base64.b64decode(base64_str)
+    return Image.open(BytesIO(image_data)).convert("RGB")
+
+def image_to_base64(image: Image.Image):
+    buffered = BytesIO()
+    image.save(buffered, format="JPEG")
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 def create_dummy_image():
     """
@@ -17,34 +26,52 @@ def create_dummy_image():
     """
     img = Image.open(r"C:\Users\ShayMoshe\OneDrive - vayyar.com\Documents\Personal\ML\HairSProject\pics\Shay\image_wh3.jpeg")
     img_byte_arr = BytesIO()
-    img.save(img_byte_arr, format='PNG')
+    img.save(img_byte_arr, format='JPEG')
     img_byte_arr.seek(0)
+    # return image_to_base64(img)
     return img_byte_arr
 
 
-def test_upload_source_image():
+def test_upload_source_image_payload():
     """
     Test uploading a source image to the /upload_source_image endpoint.
     """
     print("Testing image upload...")
 
     # Create a dummy image for testing
-    dummy_image = create_dummy_image()
+    image_data = create_dummy_image()
 
-    files = {'file': ('dummy_image.png', dummy_image, 'image/png')}
+    # files = {'file': ('dummy_image.png', dummy_image, 'image/png')}
 
-    response = requests.post(f"{BASE_URL}/upload_source_image", files=files)
+    # response = requests.post(f"{BASE_URL}/upload_source_image", files=files)
+    response = requests.post(f"{BASE_URL}/upload_source_image", json={'source_image' : image_data})
 
-    if response.status_code == 202:
+    if response.status_code == 200:
         data = response.json()
         print("Upload successful:")
         # print(f"Images: {data.get('images')}")
         print(f"Source Image ID: {data.get('sourceImageId')}")
-        return data.get('sourceImageId')
+        return data.get('sourceImageId'), data.get('images', [])
     else:
-        print(f"Upload failed: {response.status_code} - {response.text}")
-        return None
+        # print(f"Upload failed: {response.status_code} - {response.text}")
+        print(f"Upload failed: {response.status_code}")
+        return None, []
 
+def test_upload_source_image():
+    print("Testing image upload...")
+    dummy_image = create_dummy_image()
+    files = {'file': ('dummy_image.png', dummy_image, 'image/png')}
+    start_time = time.time()
+    response = requests.post(f"{BASE_URL}/upload_source_image", files=files)
+    elapsed = time.time() - start_time
+    print(f"Client round-trip took {elapsed:.2f} seconds")
+    if response.status_code == 200:
+        data = response.json()
+        print(f"Source Image ID: {data.get('sourceImageId')}")
+        return data.get('sourceImageId'), data.get('images', [])
+    else:
+        print(f"Upload failed: {response.status_code} ")
+        return None, []
 
 def test_start_task(model_name: str, params: dict):
     """
@@ -59,7 +86,7 @@ def test_start_task(model_name: str, params: dict):
         print(f"Task started successfully. Task ID: {data['task_id']}")
         return data['task_id']
     else:
-        print(f"Start task failed: {response.status_code} - {response.text}")
+        print(f"Start task failed: {response.status_code}")
         return None
 
 
@@ -80,7 +107,7 @@ def test_get_status(task_id: str):
                 print("Task completed or failed.")
                 return status.get('result', None)
         else:
-            print(f"Get status failed: {response.status_code} - {response.text}")
+            print(f"Get status failed: {response.status_code}")
             return None
 
         time.sleep(2)  # Poll every 2 seconds
@@ -105,7 +132,10 @@ def test_cancel_task(task_id: str):
 
 if __name__ == "__main__":
     # Step 1: Test image upload
-    source_image_id = test_upload_source_image()
+    start_time = time.time()
+    source_image_id, style_images = test_upload_source_image()
+    elapsed_time = time.time() - start_time
+    print(f"Image upload took {elapsed_time:.2f} seconds")
 
     if source_image_id:
         # Step 2: Test starting a task (assuming 'model_ht' is a valid model and params use the source_image_id)

@@ -27,6 +27,8 @@ class ModelHairTransfer:
                     with open(os.path.join(results_dir, filename), "rb") as img_file:
                         img_data = base64.b64encode(img_file.read()).decode('utf-8')
                         images.append(f"data:image/jpeg;base64,{img_data}")
+                        # images.append(f"data:image/{filename.lower()};base64,{img_data}")
+
         return images
 
     def upload_source_image(self, image_data: bytes, progress_callback=None, cancel_check_callback=None):
