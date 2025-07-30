@@ -182,7 +182,6 @@ export default function Home() {
   const handleSelectImage = (imageSrc: string, index: number) => {
     const existingTab = tabs.find(tab => tab.imageSrc === imageSrc);
     if (existingTab) {
-      logger.log("Existing tab found", existingTab);
       setActiveTabId(existingTab.id);
       return;
     }
@@ -211,7 +210,6 @@ export default function Home() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: imageSrc }),
         });
-        logger.log("Model profile start response:", { task_id });
 
         const progData = await pollTaskStatus(task_id, progress =>
           updateTabModelProfile(tabId, { status: "processing", progress }), "model_profile"
@@ -239,93 +237,77 @@ export default function Home() {
   const activeTab = tabs.find(tab => tab.id === activeTabId);
 
   return (
-    <main className="flex flex-col w-full h-screen">
-      <div className="flex flex-col items-center px-5 pt-10 text-center">
-        <h1 className="text-4xl font-bold text-gray-900">From Vision to Virtual – Your Hair, Reimagined</h1>
-        <h3 className="mt-2 mb-8 text-xl font-medium text-primary">Style It. See It. Love It.</h3>
-      </div>
+    <main className="flex flex-col w-full h-screen bg-white text-gray-800">
+      <header className="text-center py-10 px-5">
+        <h1 className="text-4xl font-bold">From Vision to Virtual – Your Hair, Reimagined</h1>
+        <p className="text-lg mt-2 text-gray-600 italic">Style It. See It. Love It.</p>
+      </header>
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 overflow-hidden">
         {tabs.length > 0 && (
-          <div className="w-64 bg-gray-50 border-r border-gray-200 p-4">
+          <aside className="w-72 bg-gray-50 border-r border-gray-200 p-4 overflow-y-auto">
             <button
               onClick={() => setActiveTabId(null)}
-              className="w-full mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center text-3xl"
+              className="w-full mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
               title="Back to Catalog"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="40"
-                height="40"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="feather feather-home"
-                aria-label="Home"
-              >
-                <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-4H9v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V9.5z" />
-              </svg>
+              ← Back to Catalog
             </button>
             <h3 className="text-lg font-semibold text-gray-800 mb-4">My Styles</h3>
-            <div className="space-y-2">
-              {tabs.map((tab) => (
+            <div className="space-y-3">
+              {tabs.map(tab => (
                 <div
                   key={tab.id}
-                  className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
-                    activeTabId === tab.id ? 'bg-blue-100 border border-blue-300' : 'bg-white border border-gray-200 hover:bg-gray-50'
+                  className={`p-2 rounded-md cursor-pointer flex justify-between items-center ${
+                    activeTabId === tab.id ? 'bg-blue-100 border border-blue-300' : 'bg-white border hover:bg-gray-50'
                   }`}
                   onClick={() => setActiveTabId(tab.id)}
                 >
-                  <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    <div className="flex space-x-1">
-                      <ImagePreview src={tab.imageSrc} alt={tab.title} size={32} />
-                      {tab.modelProfile.resultImage && (
-                        <ImagePreview src={tab.modelProfile.resultImage} alt={`${tab.title} Profile`} size={32} border />
-                      )}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700 truncate">{tab.title}</span>
+                  <div className="flex items-center space-x-2 overflow-hidden">
+                    <ImagePreview src={tab.imageSrc} alt={tab.title} size={32} />
+                    {tab.modelProfile.resultImage && (
+                      <ImagePreview src={tab.modelProfile.resultImage} alt="Profile" size={32} border />
+                    )}
+                    <span className="text-sm truncate">{tab.title}</span>
                   </div>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleCloseTab(tab.id);
                     }}
-                    className="text-gray-400 hover:text-red-500 ml-2"
+                    className="text-gray-400 hover:text-red-500"
                   >
                     ×
                   </button>
                 </div>
               ))}
             </div>
-          </div>
+          </aside>
         )}
 
-        <div className={`flex-1 p-6 ${tabs.length === 0 ? '' : ''}`}>
+        <section className="flex-1 p-6 overflow-y-auto">
           {activeTab ? (
-            <SelectedImageTab 
-              imageSrc={activeTab.imageSrc} 
-              title={activeTab.title} 
+            <SelectedImageTab
+              imageSrc={activeTab.imageSrc}
+              title={activeTab.title}
               modelProfile={activeTab.modelProfile}
             />
           ) : (
-            <div className="flex flex-col items-center">
-              <div className="w-full max-w-2xl">
-                <GradioImageUpload
-                  value={state.sourceImage}
-                  onChange={(image) => dispatch({ type: "SET_SOURCE_IMAGE", payload: image })}
-                />
+            <div className="flex flex-col items-center w-full max-w-6xl mx-auto">
+              <GradioImageUpload
+                value={state.sourceImage}
+                onChange={(image) => dispatch({ type: "SET_SOURCE_IMAGE", payload: image })}
+              />
 
-                {state.sourceImage && state.items.length === 0 && <div className="mt-6 text-blue-600 text-center">Processing...</div>}
-                {state.error && <div className="mt-6 text-red-600 text-center">Error: {state.error}</div>}
-              </div>
+              {state.sourceImage && state.items.length === 0 && (
+                <div className="mt-6 text-blue-600 text-center">Processing...</div>
+              )}
+              {state.error && <div className="mt-6 text-red-600 text-center">Error: {state.error}</div>}
 
               {state.items.length > 0 && (
-                <section className="catalog-container w-full">
-                  <h2 className="text-xl font-semibold text-accent mb-6 text-center">Choose your style</h2>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-9 max-h-[60vh] overflow-y-auto">
+                <section className="w-full mt-10">
+                  <h2 className="text-2xl font-semibold text-center mb-6">Choose Your Style</h2>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6 max-h-[60vh] overflow-y-auto">
                     {state.items.map((item: any, idx: any) => (
                       <ImageCard
                         key={idx}
@@ -341,32 +323,19 @@ export default function Home() {
               )}
             </div>
           )}
-        </div>
+        </section>
       </div>
     </main>
   );
 }
 
 function dataURLtoFormData(sourceImage: string): FormData {
-  if (!sourceImage.startsWith("data:image/")) {
-    throw new Error("Source image must be a data URL of an image");
-  }
-
   const [header, base64] = sourceImage.split(",");
-  const match = header.match(/data:(image\/[a-zA-Z0-9.+-]+);base64/);
-  if (!match) {
-    throw new Error("Invalid data URL format");
-  }
-  const mimeType = match[1];
-
+  const mime = header.match(/data:(image\/.+);base64/)?.[1] || "image/png";
   const binary = atob(base64);
-  const array = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    array[i] = binary.charCodeAt(i);
-  }
-  const blob = new Blob([array], { type: mimeType });
-
+  const array = Uint8Array.from(binary, c => c.charCodeAt(0));
+  const blob = new Blob([array], { type: mime });
   const formData = new FormData();
-  formData.append("file", blob, "upload." + mimeType.split("/")[1]);
+  formData.append("file", blob, "upload." + mime.split("/")[1]);
   return formData;
 }
