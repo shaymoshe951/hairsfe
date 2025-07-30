@@ -1,15 +1,14 @@
-// page.tsx
-// app/page.tsx (refactored with Tailwind CSS)
 "use client";
 
 import React, { useReducer, useEffect, useState } from "react";
-import Image from "next/image";
 import GradioImageUpload from "./components/GradioImageUpload";
 import ImageCard from "./components/ImageCard";
 import SelectedImageTab from "./components/SelectedImageTab";
+import ImagePreview from "./components/ImagePreview";
+import { Tab } from "./types";
+import { fetchWithErrorHandling, pollTaskStatus, handleTaskStatus, logger } from "./utils";
 
-// const API_BASE_URL = "https://v7o7pgaw993bzn-8000.proxy.runpod.net";
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 const initialState = {
   sourceImage: null,
@@ -17,7 +16,7 @@ const initialState = {
   isLoading: false,
   error: null,
   activeProcessingCount: 0,
-  sourceImageId: null, // add to initial state
+  sourceImageId: null,
 };
 
 function reducer(state: any, action: any) {
@@ -103,36 +102,32 @@ function reducer(state: any, action: any) {
 export default function Home() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [hoveredCard, setHoveredCard] = useState(null);
-  const [tabs, setTabs] = useState<Array<{ 
-    id: string; 
-    imageSrc: string; 
-    title: string;
-    modelProfile: {
-      status: "pending" | "processing" | "done" | "error";
-      progress: number;
-      resultImage: string | null;
-      error: string | null;
-    };
-  }>>([]);
+  const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+
+  const updateTabModelProfile = (tabId: string, updates: Partial<Tab["modelProfile"]>) => {
+    setTabs(prevTabs =>
+      prevTabs.map(tab =>
+        tab.id === tabId
+          ? { ...tab, modelProfile: { ...tab.modelProfile, ...updates } }
+          : tab
+      )
+    );
+  };
 
   useEffect(() => {
     if (!state.sourceImage) return;
 
     const fetchImages = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/upload_source_image`, {
+        const data = await fetchWithErrorHandling(`${API_BASE_URL}/upload_source_image`, {
           method: "POST",
-          headers: undefined,
           body: dataURLtoFormData(state.sourceImage),
         });
-        if (!res.ok) throw new Error("API error: " + res.status);
-        const data = await res.json();
-        // Expecting { images: [...], sourceImageId: ... }
-        console.log("data.sourceImageId=",data.sourceImageId )
+        logger.log("data.sourceImageId=", data.sourceImageId);
         dispatch({ type: "FETCH_INITIAL_IMAGES_START", payload: { sourceImageId: data.sourceImageId } });
         dispatch({ type: "FETCH_INITIAL_IMAGES_SUCCESS", payload: data.images || [] });
-        console.log("data.images=", data.images.length )
+        logger.log("data.images=", data.images.length);
       } catch (err) {
         dispatch({ type: "FETCH_INITIAL_IMAGES_ERROR", payload: (err as Error).message });
       }
@@ -154,228 +149,84 @@ export default function Home() {
       return -1;
     };
 
+    const processItem = async (index: number) => {
+      try {
+        const { task_id } = await fetchWithErrorHandling(`${API_BASE_URL}/start/model_ht`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ index, source_image_id: state.sourceImageId }),
+        });
+        dispatch({ type: "PROCESS_START", payload: { index, taskId: task_id } });
+
+        const progData = await pollTaskStatus(task_id, progress =>
+          dispatch({ type: "PROCESS_PROGRESS", payload: { index, progress } }), "model_ht"
+        );
+
+        handleTaskStatus(
+          progData,
+          result => dispatch({ type: "PROCESS_SUCCESS", payload: { index, image: result } }),
+          error => dispatch({ type: "PROCESS_ERROR", payload: { index, error } })
+        );
+      } catch (e) {
+        logger.error(`Error processing image ${index}:`, e);
+        dispatch({ type: "PROCESS_ERROR", payload: { index, error: (e as Error).message } });
+      }
+    };
+
     const nextItemIndex = findNextItem();
-
     if (nextItemIndex !== -1) {
-      const processItem = async (index: number) => {
-        let taskId;
-        try {
-          const startRes = await fetch(`${API_BASE_URL}/start/model_ht`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ index, source_image_id: state.sourceImageId }),
-          });
-          if (!startRes.ok) throw new Error("Server error on start");
-          const { task_id } = await startRes.json();
-          taskId = task_id;
-          dispatch({ type: "PROCESS_START", payload: { index, taskId } });
-
-          let isDone = false;
-          let progData: any = {};
-          while (!isDone) {
-            await new Promise((r) => setTimeout(r, 500));
-            if (!taskId) return;
-            const progRes = await fetch(`${API_BASE_URL}/status/${taskId}`);
-            if (!progRes.ok) continue;
-            progData = await progRes.json();
-            isDone = progData.done  || (progData.progress >= 100);
-            dispatch({ type: "PROCESS_PROGRESS", payload: { index, progress: progData.progress ?? 0 } });
-          }
-          console.log('Done; status=', progData.status, 'done=', progData.done, 'progress=', progData.progress)  
-          if (progData.status === "Failed") {
-            console.error(`Error processing image ${index}:`, progData.error);
-            dispatch({ type: "PROCESS_ERROR", payload: { index, error: progData.error } });          
-          } else if (progData.status === "Completed") {
-            const image = progData.result; // fastAPI now returns {status, result, done}
-            dispatch({ type: "PROCESS_SUCCESS", payload: { index, image } });
-          } else if (progData.status === "Canceled") {
-            console.error(`Canceled processing image ${index}`);
-            dispatch({ type: "PROCESS_ERROR", payload: { index, error: "Canceled" } });
-          } else {
-            throw new Error("Unknown status: " + progData.status);
-          }
-
-        } catch (e) {
-          console.error(`Error processing image ${index}:`, e);
-          dispatch({ type: "PROCESS_ERROR", payload: { index } });
-        }
-      };
-
       processItem(nextItemIndex);
     }
   }, [state.items, state.activeProcessingCount]);
 
   const handleSelectImage = (imageSrc: string, index: number) => {
-    // Check if a tab for this image already exists
     const existingTab = tabs.find(tab => tab.imageSrc === imageSrc);
     if (existingTab) {
-      console.log("Existing tab found", existingTab);
+      logger.log("Existing tab found", existingTab);
       setActiveTabId(existingTab.id);
       return;
     }
-    // Otherwise, create a new tab
+
     const tabId = `tab-${index}-${Math.random().toString(36).slice(2, 10)}`;
-    const newTab = {
+    const newTab: Tab = {
       id: tabId,
       imageSrc,
       title: `Style ${index + 1}`,
       modelProfile: {
-        status: "pending" as const, // "pending" | "processing" | "done" | "error"
+        status: "pending",
         progress: 0,
         resultImage: null,
         error: null,
-      }
+      },
     };
 
-    // Start model_profile process as soon as tab is created
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(tabId);
+
     (async () => {
-      setTabs(prevTabs =>
-        prevTabs.map(tab =>
-          tab.id === tabId
-            ? {
-                ...tab,
-                modelProfile: {
-                  ...tab.modelProfile,
-                  status: "processing" as const,
-                  progress: 0,
-                  error: null,
-                }
-              }
-            : tab
-        )
-      );
       try {
-        // Start the process
-        const startRes = await fetch(`${API_BASE_URL}/start/model_profile`, {
+        updateTabModelProfile(tabId, { status: "processing", progress: 0, error: null });
+        const { task_id } = await fetchWithErrorHandling(`${API_BASE_URL}/start/model_profile`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: imageSrc }),
         });
-        if (!startRes.ok) {
-          const errorText = await startRes.text();
-          console.error("Failed to start model_profile:", errorText);
-          throw new Error(`Failed to start model_profile: ${startRes.status} - ${errorText}`);
-        }
-        const startData = await startRes.json();
-        console.log("Model profile start response:", startData);
-        const { task_id } = startData;
+        logger.log("Model profile start response:", { task_id });
 
-        let isDone = false;
-        let progData: any = {};
-        while (!isDone) {
-          await new Promise((r) => setTimeout(r, 500));
-          if (!task_id) break;
-          const progRes = await fetch(`${API_BASE_URL}/status/${task_id}`);
-          if (!progRes.ok) {
-            console.error("Status check failed:", progRes.status);
-            continue;
-          }
-          progData = await progRes.json();
-          console.log("Model profile progress data:", progData);
-          isDone = progData.done || (progData.progress >= 100);
-
-          setTabs(prevTabs =>
-            prevTabs.map(tab =>
-              tab.id === tabId
-                ? {
-                    ...tab,
-                    modelProfile: {
-                      ...tab.modelProfile,
-                      status: "processing" as const,
-                      progress: progData.progress ?? 0,
-                    }
-                  }
-                : tab
-            )
-          );
-        }
-
-        console.log("Model profile final status:", progData);
-        if (progData.status === "Failed") {
-          setTabs(prevTabs =>
-            prevTabs.map(tab =>
-              tab.id === tabId
-                ? {
-                    ...tab,
-                    modelProfile: {
-                      ...tab.modelProfile,
-                      status: "error" as const,
-                      error: progData.error || "Failed to process",
-                      progress: progData.progress ?? 0,
-                    }
-                  }
-                : tab
-            )
-          );
-        } else if (progData.status === "Completed") {
-          setTabs(prevTabs =>
-            prevTabs.map(tab =>
-              tab.id === tabId
-                ? {
-                    ...tab,
-                    modelProfile: {
-                      ...tab.modelProfile,
-                      status: "done" as const,
-                      progress: 100,
-                      resultImage: progData.result,
-                    }
-                  }
-                : tab
-            )
-          );
-        } else if (progData.status === "Canceled") {
-          setTabs(prevTabs =>
-            prevTabs.map(tab =>
-              tab.id === tabId
-                ? {
-                    ...tab,
-                    modelProfile: {
-                      ...tab.modelProfile,
-                      status: "error" as const,
-                      error: "Canceled",
-                      progress: progData.progress ?? 0,
-                    }
-                  }
-                : tab
-            )
-          );
-        } else {
-          setTabs(prevTabs =>
-            prevTabs.map(tab =>
-              tab.id === tabId
-                ? {
-                    ...tab,
-                    modelProfile: {
-                      ...tab.modelProfile,
-                      status: "error" as const,
-                      error: "Unknown status: " + progData.status,
-                      progress: progData.progress ?? 0,
-                    }
-                  }
-                : tab
-            )
-          );
-        }
-      } catch (e) {
-        console.error("Model profile processing error:", e);
-        setTabs(prevTabs =>
-          prevTabs.map(tab =>
-            tab.id === tabId
-              ? {
-                  ...tab,
-                  modelProfile: {
-                    ...tab.modelProfile,
-                    status: "error" as const,
-                    error: (e as Error)?.message || "Unknown error",
-                  }
-                }
-              : tab
-          )
+        const progData = await pollTaskStatus(task_id, progress =>
+          updateTabModelProfile(tabId, { status: "processing", progress }), "model_profile"
         );
+
+        handleTaskStatus(
+          progData,
+          result => updateTabModelProfile(tabId, { status: "done", progress: 100, resultImage: result }),
+          error => updateTabModelProfile(tabId, { status: "error", error, progress: progData.progress ?? 0 })
+        );
+      } catch (e) {
+        logger.error("Model profile processing error:", e);
+        updateTabModelProfile(tabId, { status: "error", error: (e as Error).message || "Unknown error" });
       }
     })();
-    setTabs(prev => [...prev, newTab]);
-    setActiveTabId(tabId);
   };
 
   const handleCloseTab = (tabId: string) => {
@@ -394,9 +245,7 @@ export default function Home() {
         <h3 className="mt-2 mb-8 text-xl font-medium text-primary">Style It. See It. Love It.</h3>
       </div>
 
-      {/* Main layout: sidebar always visible */}
       <div className="flex flex-1">
-        {/* Navigation Panel */}
         {tabs.length > 0 && (
           <div className="w-64 bg-gray-50 border-r border-gray-200 p-4">
             <button
@@ -432,27 +281,9 @@ export default function Home() {
                 >
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
                     <div className="flex space-x-1">
-                      {/* Original Image */}
-                      <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center overflow-hidden rounded">
-                        <Image
-                          src={tab.imageSrc}
-                          alt={tab.title}
-                          width={32}
-                          height={32}
-                          style={{ objectFit: "cover", borderRadius: 6, display: "block" }}
-                        />
-                      </div>
-                      {/* Model Profile Result Image */}
+                      <ImagePreview src={tab.imageSrc} alt={tab.title} size={32} />
                       {tab.modelProfile.resultImage && (
-                        <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center overflow-hidden rounded border border-green-300">
-                          <Image
-                            src={tab.modelProfile.resultImage}
-                            alt={`${tab.title} Profile`}
-                            width={32}
-                            height={32}
-                            style={{ objectFit: "cover", borderRadius: 6, display: "block" }}
-                          />
-                        </div>
+                        <ImagePreview src={tab.modelProfile.resultImage} alt={`${tab.title} Profile`} size={32} border />
                       )}
                     </div>
                     <span className="text-sm font-medium text-gray-700 truncate">{tab.title}</span>
@@ -472,7 +303,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Main Content Area */}
         <div className={`flex-1 p-6 ${tabs.length === 0 ? '' : ''}`}>
           {activeTab ? (
             <SelectedImageTab 
@@ -518,13 +348,10 @@ export default function Home() {
 }
 
 function dataURLtoFormData(sourceImage: string): FormData {
-  // sourceImage is expected to be a data URL (e.g., "data:image/png;base64,...")
-  // Convert it to a Blob and append to FormData as "file"
   if (!sourceImage.startsWith("data:image/")) {
     throw new Error("Source image must be a data URL of an image");
   }
 
-  // Split the data URL
   const [header, base64] = sourceImage.split(",");
   const match = header.match(/data:(image\/[a-zA-Z0-9.+-]+);base64/);
   if (!match) {
@@ -532,7 +359,6 @@ function dataURLtoFormData(sourceImage: string): FormData {
   }
   const mimeType = match[1];
 
-  // Decode base64 to binary
   const binary = atob(base64);
   const array = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
@@ -540,7 +366,6 @@ function dataURLtoFormData(sourceImage: string): FormData {
   }
   const blob = new Blob([array], { type: mimeType });
 
-  // Create FormData and append as "file"
   const formData = new FormData();
   formData.append("file", blob, "upload." + mimeType.split("/")[1]);
   return formData;

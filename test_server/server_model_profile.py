@@ -57,6 +57,10 @@ class ModelProfile:
 
     def run(self, params : dict, progress_callback, cancel_check_callback):
         input_image = params['image']
+
+        # Tmp
+        return input_image
+
         mode = params.get('mode', 'profile') #: Literal[')profile', 'color', 'edit']
         color = params.get('color', 'dark brown')
         encoded_image = input_image #self.__get_image_encoded__(input_image)
