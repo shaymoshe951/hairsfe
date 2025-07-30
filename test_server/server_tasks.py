@@ -5,10 +5,12 @@ import uuid
 import time  # If needed for simulation
 
 from server_model_hairtransfer import ModelHairTransfer
+from test_server.server_model_profile import ModelProfile
 
 # Registry for models (expand as needed)
 MODEL_REGISTRY = {
     'model_ht': ModelHairTransfer(),
+    'model_profile': ModelProfile(),  # Placeholder for other models
 }
 
 class TaskRevokedError(Exception):

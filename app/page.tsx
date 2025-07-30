@@ -8,7 +8,7 @@ import GradioImageUpload from "./components/GradioImageUpload";
 import ImageCard from "./components/ImageCard";
 import SelectedImageTab from "./components/SelectedImageTab";
 
-// const API_BASE_URL = "https://pipnam3nkqvb6u-8000.proxy.runpod.net";
+// const API_BASE_URL = "https://v7o7pgaw993bzn-8000.proxy.runpod.net";
 const API_BASE_URL = "http://localhost:8000";
 
 const initialState = {
@@ -103,7 +103,17 @@ function reducer(state: any, action: any) {
 export default function Home() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [hoveredCard, setHoveredCard] = useState(null);
-  const [tabs, setTabs] = useState<Array<{ id: string; imageSrc: string; title: string }>>([]);
+  const [tabs, setTabs] = useState<Array<{ 
+    id: string; 
+    imageSrc: string; 
+    title: string;
+    modelProfile: {
+      status: "pending" | "processing" | "done" | "error";
+      progress: number;
+      resultImage: string | null;
+      error: string | null;
+    };
+  }>>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -208,8 +218,162 @@ export default function Home() {
     const newTab = {
       id: tabId,
       imageSrc,
-      title: `Style ${index + 1}`
+      title: `Style ${index + 1}`,
+      modelProfile: {
+        status: "pending" as const, // "pending" | "processing" | "done" | "error"
+        progress: 0,
+        resultImage: null,
+        error: null,
+      }
     };
+
+    // Start model_profile process as soon as tab is created
+    (async () => {
+      setTabs(prevTabs =>
+        prevTabs.map(tab =>
+          tab.id === tabId
+            ? {
+                ...tab,
+                modelProfile: {
+                  ...tab.modelProfile,
+                  status: "processing" as const,
+                  progress: 0,
+                  error: null,
+                }
+              }
+            : tab
+        )
+      );
+      try {
+        // Start the process
+        const startRes = await fetch(`${API_BASE_URL}/start/model_profile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: imageSrc }),
+        });
+        if (!startRes.ok) {
+          const errorText = await startRes.text();
+          console.error("Failed to start model_profile:", errorText);
+          throw new Error(`Failed to start model_profile: ${startRes.status} - ${errorText}`);
+        }
+        const startData = await startRes.json();
+        console.log("Model profile start response:", startData);
+        const { task_id } = startData;
+
+        let isDone = false;
+        let progData: any = {};
+        while (!isDone) {
+          await new Promise((r) => setTimeout(r, 500));
+          if (!task_id) break;
+          const progRes = await fetch(`${API_BASE_URL}/status/${task_id}`);
+          if (!progRes.ok) {
+            console.error("Status check failed:", progRes.status);
+            continue;
+          }
+          progData = await progRes.json();
+          console.log("Model profile progress data:", progData);
+          isDone = progData.done || (progData.progress >= 100);
+
+          setTabs(prevTabs =>
+            prevTabs.map(tab =>
+              tab.id === tabId
+                ? {
+                    ...tab,
+                    modelProfile: {
+                      ...tab.modelProfile,
+                      status: "processing" as const,
+                      progress: progData.progress ?? 0,
+                    }
+                  }
+                : tab
+            )
+          );
+        }
+
+        console.log("Model profile final status:", progData);
+        if (progData.status === "Failed") {
+          setTabs(prevTabs =>
+            prevTabs.map(tab =>
+              tab.id === tabId
+                ? {
+                    ...tab,
+                    modelProfile: {
+                      ...tab.modelProfile,
+                      status: "error" as const,
+                      error: progData.error || "Failed to process",
+                      progress: progData.progress ?? 0,
+                    }
+                  }
+                : tab
+            )
+          );
+        } else if (progData.status === "Completed") {
+          setTabs(prevTabs =>
+            prevTabs.map(tab =>
+              tab.id === tabId
+                ? {
+                    ...tab,
+                    modelProfile: {
+                      ...tab.modelProfile,
+                      status: "done" as const,
+                      progress: 100,
+                      resultImage: progData.result,
+                    }
+                  }
+                : tab
+            )
+          );
+        } else if (progData.status === "Canceled") {
+          setTabs(prevTabs =>
+            prevTabs.map(tab =>
+              tab.id === tabId
+                ? {
+                    ...tab,
+                    modelProfile: {
+                      ...tab.modelProfile,
+                      status: "error" as const,
+                      error: "Canceled",
+                      progress: progData.progress ?? 0,
+                    }
+                  }
+                : tab
+            )
+          );
+        } else {
+          setTabs(prevTabs =>
+            prevTabs.map(tab =>
+              tab.id === tabId
+                ? {
+                    ...tab,
+                    modelProfile: {
+                      ...tab.modelProfile,
+                      status: "error" as const,
+                      error: "Unknown status: " + progData.status,
+                      progress: progData.progress ?? 0,
+                    }
+                  }
+                : tab
+            )
+          );
+        }
+      } catch (e) {
+        console.error("Model profile processing error:", e);
+        setTabs(prevTabs =>
+          prevTabs.map(tab =>
+            tab.id === tabId
+              ? {
+                  ...tab,
+                  modelProfile: {
+                    ...tab.modelProfile,
+                    status: "error" as const,
+                    error: (e as Error)?.message || "Unknown error",
+                  }
+                }
+              : tab
+          )
+        );
+      }
+    })();
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(tabId);
   };
@@ -267,14 +431,29 @@ export default function Home() {
                   onClick={() => setActiveTabId(tab.id)}
                 >
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center overflow-hidden rounded">
-                      <Image
-                        src={tab.imageSrc}
-                        alt={tab.title}
-                        width={32}
-                        height={32}
-                        style={{ objectFit: "cover", borderRadius: 6, display: "block" }}
-                      />
+                    <div className="flex space-x-1">
+                      {/* Original Image */}
+                      <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center overflow-hidden rounded">
+                        <Image
+                          src={tab.imageSrc}
+                          alt={tab.title}
+                          width={32}
+                          height={32}
+                          style={{ objectFit: "cover", borderRadius: 6, display: "block" }}
+                        />
+                      </div>
+                      {/* Model Profile Result Image */}
+                      {tab.modelProfile.resultImage && (
+                        <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center overflow-hidden rounded border border-green-300">
+                          <Image
+                            src={tab.modelProfile.resultImage}
+                            alt={`${tab.title} Profile`}
+                            width={32}
+                            height={32}
+                            style={{ objectFit: "cover", borderRadius: 6, display: "block" }}
+                          />
+                        </div>
+                      )}
                     </div>
                     <span className="text-sm font-medium text-gray-700 truncate">{tab.title}</span>
                   </div>
@@ -296,7 +475,11 @@ export default function Home() {
         {/* Main Content Area */}
         <div className={`flex-1 p-6 ${tabs.length === 0 ? '' : ''}`}>
           {activeTab ? (
-            <SelectedImageTab imageSrc={activeTab.imageSrc} title={activeTab.title} />
+            <SelectedImageTab 
+              imageSrc={activeTab.imageSrc} 
+              title={activeTab.title} 
+              modelProfile={activeTab.modelProfile}
+            />
           ) : (
             <div className="flex flex-col items-center">
               <div className="w-full max-w-2xl">
