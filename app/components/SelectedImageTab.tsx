@@ -2,6 +2,9 @@
 import React from "react";
 import ImagePreview from "./ImagePreview";
 import { ModelProfile } from "../types";
+import { fetchWithErrorHandling, pollTaskStatus } from "../utils";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 interface SelectedImageTabProps {
   imageSrc: string;
@@ -40,6 +43,10 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile }: Sele
   const [currentView, setCurrentView] = React.useState<ViewMode>('preview');
   const [selectedColor, setSelectedColor] = React.useState<HairColor | null>(null);
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>("Classic");
+  const [isProcessingColor, setIsProcessingColor] = React.useState(false);
+  const [colorResultImage, setColorResultImage] = React.useState<string | null>(null);
+  const [colorTaskId, setColorTaskId] = React.useState<string | null>(null);
+  const [colorProgress, setColorProgress] = React.useState<number>(0);
 
   const handleDownload = async () => {
     try {
@@ -93,14 +100,54 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile }: Sele
     return Array.from(new Set(Object.values(hairColorDict).map(color => color.Category)));
   };
 
-  const handleColorSelect = (color: HairColor) => {
+  const handleColorSelect = async (color: HairColor) => {
     setSelectedColor(color);
-    console.log(`Selected color: ${color.Name} (${color.Code})`);
+    
+    // Call the model_haircolor API
+    try {
+      setIsProcessingColor(true);
+      setColorResultImage(null); // Reset previous result
+      setColorProgress(0); // Reset progress
+      
+      const response = await fetchWithErrorHandling(`${API_BASE_URL}/start/model_haircolor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageSrc, color: color.Name }),
+      });
+      
+      const { task_id } = response;
+      setColorTaskId(task_id);
+      
+      // Use the existing pollTaskStatus function
+      try {
+        const result = await pollTaskStatus(task_id, setColorProgress, "hair color processing");
+        
+        // Handle the result
+        if (result.result || result.resultImage || result.image || result.data) {
+          const resultImage = result.result || result.resultImage || result.image || result.data;
+          setColorResultImage(resultImage);
+          setColorProgress(100);
+        } else {
+          console.error("No result image found in response:", result);
+        }
+      } catch (error) {
+        console.error("Error polling color task status:", error);
+      } finally {
+        setIsProcessingColor(false);
+      }
+      
+    } catch (error) {
+      console.error("Error starting hair color processing:", error);
+      setIsProcessingColor(false);
+      setColorProgress(0);
+    }
   };
 
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
     setSelectedColor(null); // Reset selected color when changing category
+    setColorResultImage(null); // Reset result image
+    setColorProgress(0); // Reset progress
   };
 
   const renderColorEditView = () => {
@@ -137,11 +184,46 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile }: Sele
               </div>
             )}
           </div>
+          
+          {/* Image Comparison Section */}
           <div className="flex justify-center mb-6">
-            <div className="bg-gray-100 rounded-lg p-4 max-w-xs">
-              <ImagePreview src={imageSrc} alt={title} className="rounded-lg shadow-md" />
+            <div className="flex gap-8 items-start">
+              {/* Original Image */}
+              <div className="flex flex-col items-center">
+                <h3 className="text-lg font-medium text-gray-700 mb-2">Original</h3>
+                <div className="bg-gray-100 rounded-lg p-4 max-w-xs">
+                  <ImagePreview src={imageSrc} alt={title} className="rounded-lg shadow-md" />
+                </div>
+              </div>
+              
+              {/* Result Image */}
+              <div className="flex flex-col items-center">
+                <h3 className="text-lg font-medium text-gray-700 mb-2">Result</h3>
+                <div className="bg-gray-100 rounded-lg p-4 max-w-xs min-h-[200px] flex items-center justify-center">
+                  {isProcessingColor ? (
+                    <div className="text-center w-full">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <p className="text-sm text-gray-600 mb-3">Processing color...</p>
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden mb-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
+                          style={{ width: `${colorProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500">{colorProgress}%</p>
+                    </div>
+                  ) : colorResultImage ? (
+                    <ImagePreview src={colorResultImage} alt={`${title} with ${selectedColor?.Name}`} className="rounded-lg shadow-md" />
+                  ) : (
+                    <div className="text-center text-gray-500">
+                      <p className="text-sm">Select a color to see the result</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
+          
           <div className="max-w-6xl mx-auto mb-12">
             {selectedCategory && (
               <div className="mb-6">
@@ -159,6 +241,7 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile }: Sele
                       }`}
                       onClick={() => handleColorSelect(color)}
                       title={color.Description}
+                      disabled={isProcessingColor}
                     >
                       <div className="relative">
                         <img
@@ -201,13 +284,13 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile }: Sele
             </button>
             <button
               className={`flex items-center gap-2 px-6 py-3 rounded-lg transform transition-all duration-200 hover:scale-105 ${
-                selectedColor
+                selectedColor && colorResultImage
                   ? 'bg-purple-600 text-white hover:bg-purple-700'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
-              disabled={!selectedColor}
+              disabled={!selectedColor || !colorResultImage}
               onClick={() => {
-                if (selectedColor) {
+                if (selectedColor && colorResultImage) {
                   console.log(`Applying color: ${selectedColor.Name}`);
                 }
               }}
