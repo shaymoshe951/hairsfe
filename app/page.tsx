@@ -105,6 +105,49 @@ export default function Home() {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
+  // Debug: Auto-upload source image on page load
+  useEffect(() => {
+    const DEBUG_MODE = true; // Set to false to disable debug mode
+    
+    if (DEBUG_MODE && !state.sourceImage) {
+      // Load the resource image and convert it to a data URL
+      const imageUrl = "/resources/image_wh3.jpeg"; // Use public folder path for Next.js
+
+      fetch(imageUrl)
+        .then(response => response.blob())
+        .then(blob => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const dataUrl = reader.result as string;
+            console.log("DEBUG: Auto-uploading resource image as source image");
+            dispatch({ type: "SET_SOURCE_IMAGE", payload: dataUrl });
+          };
+          reader.readAsDataURL(blob);
+        })
+        .catch(err => {
+          console.error("DEBUG: Failed to load resource image", err);
+        });
+    }
+  }, [state.sourceImage]);
+
+  // Debug: Auto-select first style when images are available
+  useEffect(() => {
+    const DEBUG_MODE = true; // Set to false to disable debug mode
+    
+    if (DEBUG_MODE && state.items.length > 0 && tabs.length === 0 && !activeTabId) {
+      // Wait a moment for the first item to be processed
+      const timer = setTimeout(() => {
+        const firstItem = state.items[0];
+        if (firstItem && firstItem.src) {
+          console.log("DEBUG: Auto-selecting first style");
+          handleSelectImage(firstItem.src, 0);
+        }
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [state.items, tabs.length, activeTabId]);
+
   const updateTabModelProfile = (tabId: string, updates: Partial<Tab["modelProfile"]>) => {
     setTabs(prevTabs =>
       prevTabs.map(tab =>
