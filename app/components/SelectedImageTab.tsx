@@ -12,8 +12,50 @@ interface SelectedImageTabProps {
 
 type ViewMode = 'preview' | 'color-edit' | 'shape-edit';
 
+// Hair color data structure based on the Python reference
+interface HairColor {
+  Category: string;
+  Code: string;
+  Name: string;
+  Description: string;
+  imagePath: string;
+}
+
+const hairColorDict: Record<string, HairColor> = {
+  "1.1": { Category: "Cool / Ash", Code: "1.1", Name: "Blue Black", Description: "Very dark with a blue undertone", imagePath: "/resources/hair_colors/1.1.png" },
+  "4.1": { Category: "Cool / Ash", Code: "4.1", Name: "Ash Brown", Description: "Medium brown with ash undertones", imagePath: "/resources/hair_colors/4.1.png" },
+  "5.1": { Category: "Cool / Ash", Code: "5.1", Name: "Light Ash Brown", Description: "Slightly lighter ash brown", imagePath: "/resources/hair_colors/5.1.png" },
+  "6.1": { Category: "Cool / Ash", Code: "6.1", Name: "Dark Ash Blonde", Description: "Cool-toned dark blonde", imagePath: "/resources/hair_colors/6.1.png" },
+  "7.1": { Category: "Cool / Ash", Code: "7.1", Name: "Ash Blonde", Description: "Medium blonde with silvery undertones", imagePath: "/resources/hair_colors/7.1.png" },
+  "8.1": { Category: "Cool / Ash", Code: "8.1", Name: "Light Ash Blonde", Description: "Light cool blonde", imagePath: "/resources/hair_colors/8.1.png" },
+  "9.3": { Category: "Golden / Warm", Code: "9.3", Name: "Very Light Golden Blonde", Description: "Warm pale blonde", imagePath: "/resources/hair_colors/9.3.png" },
+  "8.03": { Category: "Golden / Warm", Code: "8.03", Name: "Light Natural-Golden Blonde", Description: "Natural golden tone", imagePath: "/resources/hair_colors/8.03.png" },
+  "8.3": { Category: "Golden / Warm", Code: "8.3", Name: "Light Golden Blonde", Description: "Golden light blonde", imagePath: "/resources/hair_colors/8.3.png" },
+  "7.3": { Category: "Golden / Warm", Code: "7.3", Name: "Dark Golden Blonde", Description: "Warm golden dark blonde", imagePath: "/resources/hair_colors/7.3.png" },
+  "6.34": { Category: "Golden / Warm", Code: "6.34", Name: "Light Brown with Gold-Copper", Description: "Golden-copper brown", imagePath: "/resources/hair_colors/6.34.png" },
+  "6.3": { Category: "Golden / Warm", Code: "6.3", Name: "Light Golden Brown", Description: "Warm light brown", imagePath: "/resources/hair_colors/6.3.png" },
+  "8.8": { Category: "Mocha", Code: "8.8", Name: "Light Mocha Blonde", Description: "Medium-light blonde with mocha tone", imagePath: "/resources/hair_colors/8.8.png" },
+  "7.8": { Category: "Mocha", Code: "7.8", Name: "Mocha Blonde", Description: "Slightly darker mocha blonde", imagePath: "/resources/hair_colors/7.8.png" },
+  "6.8": { Category: "Mocha", Code: "6.8", Name: "Dark Mocha Blonde", Description: "Deep warm blonde with mocha", imagePath: "/resources/hair_colors/6.8.png" },
+  "5.8": { Category: "Mocha", Code: "5.8", Name: "Light Mocha Brown", Description: "Rich warm light brown", imagePath: "/resources/hair_colors/5.8.png" },
+  "4.8": { Category: "Mocha", Code: "4.8", Name: "Mocha Brown", Description: "Warm medium brown", imagePath: "/resources/hair_colors/4.8.png" },
+  "4.2": { Category: "Fashion", Code: "4.2", Name: "Intense Violet Brown", Description: "Deep brown with purple tone", imagePath: "/resources/hair_colors/4.2.png" },
+  "9.22": { Category: "Fashion", Code: "9.22", Name: "Very Light Blonde – Deep Iris", Description: "Pale blonde with violet/iridescent", imagePath: "/resources/hair_colors/9.22.png" },
+  "9.2": { Category: "Fashion", Code: "9.2", Name: "Very Light Blonde – Iridescent Ash", Description: "Pale ash with iridescent tones", imagePath: "/resources/hair_colors/9.2.png" },
+  "9": { Category: "Classic", Code: "9", Name: "Very Light Blonde", Description: "", imagePath: "/resources/hair_colors/9.png" },
+  "8": { Category: "Classic", Code: "8", Name: "Light Blonde", Description: "", imagePath: "/resources/hair_colors/8.png" },
+  "7": { Category: "Classic", Code: "7", Name: "Dark Blonde", Description: "", imagePath: "/resources/hair_colors/7.png" },
+  "6": { Category: "Classic", Code: "6", Name: "Light Brown", Description: "", imagePath: "/resources/hair_colors/6.png" },
+  "5": { Category: "Classic", Code: "5", Name: "Medium Brown", Description: "", imagePath: "/resources/hair_colors/5.png" },
+  "4": { Category: "Classic", Code: "4", Name: "Dark Brown", Description: "", imagePath: "/resources/hair_colors/4.png" },
+  "3": { Category: "Classic", Code: "3", Name: "Very Dark Brown", Description: "", imagePath: "/resources/hair_colors/3.png" },
+  "1": { Category: "Classic", Code: "1", Name: "Black", Description: "", imagePath: "/resources/hair_colors/1.png" },
+};
+
 export default function SelectedImageTab({ imageSrc, title, modelProfile }: SelectedImageTabProps) {
   const [currentView, setCurrentView] = React.useState<ViewMode>('preview');
+  const [selectedColor, setSelectedColor] = React.useState<HairColor | null>(null);
+
   const handleDownload = async () => {
     try {
       if (!modelProfile?.resultImage) {
@@ -63,81 +105,180 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile }: Sele
      }
    };
 
-   const renderColorEditView = () => {
-     const hairColors = [
-       { name: 'Natural Black', color: '#1a1a1a', hex: '#1a1a1a' },
-       { name: 'Dark Brown', color: '#3d2914', hex: '#3d2914' },
-       { name: 'Medium Brown', color: '#5d4037', hex: '#5d4037' },
-       { name: 'Light Brown', color: '#8d6e63', hex: '#8d6e63' },
-       { name: 'Dark Blonde', color: '#a1887f', hex: '#a1887f' },
-       { name: 'Medium Blonde', color: '#d7ccc8', hex: '#d7ccc8' },
-       { name: 'Light Blonde', color: '#f5f5dc', hex: '#f5f5dc' },
-       { name: 'Platinum Blonde', color: '#fafafa', hex: '#fafafa' },
-       { name: 'Auburn', color: '#a0522d', hex: '#a0522d' },
-       { name: 'Red', color: '#b71c1c', hex: '#b71c1c' },
-       { name: 'Copper', color: '#ff6f00', hex: '#ff6f00' },
-       { name: 'Rose Gold', color: '#e91e63', hex: '#e91e63' },
-       { name: 'Purple', color: '#9c27b0', hex: '#9c27b0' },
-       { name: 'Blue', color: '#2196f3', hex: '#2196f3' },
-       { name: 'Green', color: '#4caf50', hex: '#4caf50' },
-       { name: 'Pink', color: '#e91e63', hex: '#e91e63' },
-     ];
+  const getColorsByCategory = (category: string): HairColor[] => {
+    return Object.values(hairColorDict).filter(color => color.Category === category);
+  };
 
-     return (
-       <div className="w-full animate-fade-in">
-         <div className="text-center mb-8">
-           <h2 className="text-3xl font-bold text-gray-800">Choose Hair Color</h2>
-           <p className="text-gray-500 mt-2">Select a color to apply to your hairstyle</p>
-         </div>
+  const getAllCategories = (): string[] => {
+    return Array.from(new Set(Object.values(hairColorDict).map(color => color.Category)));
+  };
 
-         <div className="flex justify-center mb-8">
-           <div className="bg-gray-100 rounded-lg p-4 max-w-md">
-             <ImagePreview src={imageSrc} alt={title} className="rounded-lg shadow-md" />
-           </div>
-         </div>
+  const handleColorSelect = (color: HairColor) => {
+    setSelectedColor(color);
+    console.log(`Selected color: ${color.Name} (${color.Code})`);
+    // Here you would implement the actual color application logic
+  };
 
-         <div className="max-w-4xl mx-auto mb-12">
-           <h3 className="text-xl font-semibold text-gray-700 mb-6 text-center">Hair Color Palette</h3>
-           <div className="grid grid-cols-4 md:grid-cols-8 gap-4">
-             {hairColors.map((color) => (
-               <button
-                 key={color.name}
-                 className="group flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 transition-all duration-200"
-                 onClick={() => console.log(`Selected color: ${color.name}`)}
-               >
-                 <div
-                   className="w-12 h-12 rounded-full border-2 border-gray-300 group-hover:border-gray-400 group-hover:scale-110 transition-all duration-200 shadow-md"
-                   style={{ backgroundColor: color.color }}
-                 />
-                 <span className="text-xs text-gray-600 mt-2 text-center leading-tight">{color.name}</span>
-               </button>
-             ))}
-           </div>
-         </div>
+  const renderColorEditView = () => {
+    const categories = getAllCategories();
 
-         <div className="flex justify-center gap-4">
-           <button
-             onClick={() => setCurrentView('preview')}
-             className="flex items-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transform transition-all duration-200 hover:scale-105"
-           >
-             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-               <path d="M19 12H6m0 0l4-4m-4 4l4 4"/>
-             </svg>
-             <span>Back to Preview</span>
-           </button>
-           
-           <button className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transform transition-all duration-200 hover:scale-105">
-             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-               <path d="M20 6L9 17l-5-5"/>
-             </svg>
-             <span>Apply Color</span>
-           </button>
-         </div>
-       </div>
-     );
-   };
+    return (
+      <div className="w-full animate-fade-in">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-800">Choose Hair Color</h2>
+          <p className="text-gray-500 mt-2">Select a color to apply to your hairstyle</p>
+          {selectedColor && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-blue-800 font-medium">Selected: {selectedColor.Name}</p>
+              <p className="text-blue-600 text-sm">{selectedColor.Description}</p>
+            </div>
+          )}
+        </div>
 
-   const renderPreviewView = () => (
+        <div className="flex justify-center mb-6">
+          <div className="bg-gray-100 rounded-lg p-4 max-w-xs">
+            <ImagePreview src={imageSrc} alt={title} className="rounded-lg shadow-md" />
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto mb-12">
+          {categories.map((category) => {
+            const categoryColors = getColorsByCategory(category);
+            const mid = Math.ceil(categoryColors.length / 2);
+            const row1 = categoryColors.slice(0, mid);
+            const row2 = categoryColors.slice(mid);
+            return (
+              <div key={category} className="mb-10">
+                <h3 className="text-xl font-semibold text-gray-700 mb-6 text-center border-b border-gray-200 pb-2">
+                  {category}
+                </h3>
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-row justify-center gap-4 md:gap-8 lg:gap-12 xl:gap-16 flex-wrap">
+                    {row1.map((color) => (
+                      <button
+                        key={color.Code}
+                        className={`group flex flex-col items-center p-3 rounded-lg transition-all duration-200 ${
+                          selectedColor?.Code === color.Code 
+                            ? 'bg-blue-100 border-2 border-blue-500' 
+                            : 'hover:bg-gray-50 border-2 border-transparent'
+                        }`}
+                        onClick={() => handleColorSelect(color)}
+                        title={color.Description}
+                      >
+                        <div className="relative">
+                          <img
+                            src={color.imagePath}
+                            alt={color.Name}
+                            className={`w-16 h-16 rounded-full border-2 border-gray-300 group-hover:border-gray-400 group-hover:scale-110 transition-all duration-200 shadow-md object-cover ${
+                              selectedColor?.Code === color.Code ? 'ring-2 ring-blue-500' : ''
+                            }`}
+                            onError={(e) => {
+                              // Fallback to a colored div if image fails to load
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const fallback = target.nextElementSibling as HTMLDivElement;
+                              if (fallback) fallback.style.display = 'block';
+                            }}
+                          />
+                          <div 
+                            className="w-16 h-16 rounded-full border-2 border-gray-300 group-hover:border-gray-400 group-hover:scale-110 transition-all duration-200 shadow-md bg-gray-300 hidden"
+                            style={{ backgroundColor: '#8d6e63' }} // Fallback color
+                          />
+                        </div>
+                        <span className="text-xs text-gray-600 mt-2 text-center leading-tight font-medium">
+                          {color.Name}
+                        </span>
+                        <span className="text-xs text-gray-400 text-center">
+                          {color.Code}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {row2.length > 0 && (
+                    <div className="flex flex-row justify-center gap-4 md:gap-8 lg:gap-12 xl:gap-16 flex-wrap">
+                      {row2.map((color) => (
+                        <button
+                          key={color.Code}
+                          className={`group flex flex-col items-center p-3 rounded-lg transition-all duration-200 ${
+                            selectedColor?.Code === color.Code 
+                              ? 'bg-blue-100 border-2 border-blue-500' 
+                              : 'hover:bg-gray-50 border-2 border-transparent'
+                          }`}
+                          onClick={() => handleColorSelect(color)}
+                          title={color.Description}
+                        >
+                          <div className="relative">
+                            <img
+                              src={color.imagePath}
+                              alt={color.Name}
+                              className={`w-16 h-16 rounded-full border-2 border-gray-300 group-hover:border-gray-400 group-hover:scale-110 transition-all duration-200 shadow-md object-cover ${
+                                selectedColor?.Code === color.Code ? 'ring-2 ring-blue-500' : ''
+                              }`}
+                              onError={(e) => {
+                                // Fallback to a colored div if image fails to load
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const fallback = target.nextElementSibling as HTMLDivElement;
+                                if (fallback) fallback.style.display = 'block';
+                              }}
+                            />
+                            <div 
+                              className="w-16 h-16 rounded-full border-2 border-gray-300 group-hover:border-gray-400 group-hover:scale-110 transition-all duration-200 shadow-md bg-gray-300 hidden"
+                              style={{ backgroundColor: '#8d6e63' }} // Fallback color
+                            />
+                          </div>
+                          <span className="text-xs text-gray-600 mt-2 text-center leading-tight font-medium">
+                            {color.Name}
+                          </span>
+                          <span className="text-xs text-gray-400 text-center">
+                            {color.Code}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={() => setCurrentView('preview')}
+            className="flex items-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transform transition-all duration-200 hover:scale-105"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H6m0 0l4-4m-4 4l4 4"/>
+            </svg>
+            <span>Back to Preview</span>
+          </button>
+          
+          <button 
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg transform transition-all duration-200 hover:scale-105 ${
+              selectedColor 
+                ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            disabled={!selectedColor}
+            onClick={() => {
+              if (selectedColor) {
+                console.log(`Applying color: ${selectedColor.Name}`);
+                // Implement color application logic here
+              }
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            <span>Apply Color</span>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPreviewView = () => (
     <div className="flex flex-col items-center h-full w-full">
       <div className="text-center mb-6">
         <h2 className="text-3xl font-bold text-gray-800">{title}</h2>
