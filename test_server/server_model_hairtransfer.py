@@ -42,7 +42,7 @@ class ModelHairTransfer:
             raise ValueError(f"Image processing failed: {str(e)}")
 
     def run(self, params, progress_callback=None, cancel_check_callback=None):
-        total_steps = 5
+        total_steps = 7
         for step in range(total_steps):
             if cancel_check_callback:
                 cancel_check_callback()  # Raises if canceled

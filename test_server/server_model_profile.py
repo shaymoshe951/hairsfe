@@ -24,6 +24,8 @@ class ModelProfile:
             "x-key": "396557ef-16f2-4111-bdec-48ccb4e0c12a",
             "Content-Type": "application/json"
         }
+        self.__timeout__ = 30  # Timeout for requests in seconds
+        self.__interval__ = 0.5  # Polling interval in seconds
 
     # Load your image and encode it
     def __encode_image__(self, path):
@@ -58,8 +60,8 @@ class ModelProfile:
     def run(self, params : dict, progress_callback, cancel_check_callback):
         input_image = params['image']
 
-        # Tmp
-        return input_image
+        # # Tmp
+        # return input_image
 
         mode = params.get('mode', 'profile') #: Literal[')profile', 'color', 'edit']
         color = params.get('color', 'dark brown')
@@ -86,10 +88,14 @@ class ModelProfile:
         resp_url = response.json()['polling_url']
         resp2 = requests.request("GET", resp_url)
         progress_var = 0.0
+
+        max_n_iter = self.__timeout__/self.__interval__
         while resp2.json()['status'] == 'Pending' or resp2.json()['status'] == 'Processing':
             resp2 = requests.request("GET", resp_url)
-            time.sleep(1)  # Polling interval, adjust as needed
-            progress_var += 100 / 5
+            # Show progress
+            print(f"Progress: {resp2.json()['progress']}")
+            time.sleep(self.__interval__)  # Polling interval, adjust as needed
+            progress_var += 100 / max_n_iter
             if cancel_check_callback():
                 raise ValueError("Task was canceled by the user.")
             progress_callback(int(progress_var))  # Update progress
