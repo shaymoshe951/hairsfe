@@ -158,6 +158,37 @@ export default function Home() {
     );
   };
 
+  const triggerProfile = (tabId: string, image: string) => {
+    updateTabModelProfile(tabId, { status: "processing", progress: 0, error: null });
+    (async () => {
+      try {
+        const { task_id } = await fetchWithErrorHandling(`${API_BASE_URL}/start/model_profile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image }),
+        });
+        const progData = await pollTaskStatus(task_id, progress =>
+          updateTabModelProfile(tabId, { status: "processing", progress }), "model_profile"
+        );
+        handleTaskStatus(
+          progData,
+          result => updateTabModelProfile(tabId, { status: "done", progress: 100, resultImage: result }),
+          error => updateTabModelProfile(tabId, { status: "error", error, progress: progData.progress ?? 0 })
+        );
+      } catch (e) {
+        logger.error("Model profile processing error:", e);
+        updateTabModelProfile(tabId, { status: "error", error: (e as Error).message || "Unknown error" });
+      }
+    })();
+  };
+
+  const handleApplyColor = (tabId: string, newImage: string) => {
+    setTabs(prevTabs => prevTabs.map(tab =>
+      tab.id === tabId ? { ...tab, imageSrc: newImage } : tab
+    ));
+    triggerProfile(tabId, newImage);
+  };
+
   useEffect(() => {
     if (!state.sourceImage) return;
 
@@ -245,29 +276,7 @@ export default function Home() {
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(tabId);
 
-    (async () => {
-      try {
-        updateTabModelProfile(tabId, { status: "processing", progress: 0, error: null });
-        const { task_id } = await fetchWithErrorHandling(`${API_BASE_URL}/start/model_profile`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: imageSrc }),
-        });
-
-        const progData = await pollTaskStatus(task_id, progress =>
-          updateTabModelProfile(tabId, { status: "processing", progress }), "model_profile"
-        );
-
-        handleTaskStatus(
-          progData,
-          result => updateTabModelProfile(tabId, { status: "done", progress: 100, resultImage: result }),
-          error => updateTabModelProfile(tabId, { status: "error", error, progress: progData.progress ?? 0 })
-        );
-      } catch (e) {
-        logger.error("Model profile processing error:", e);
-        updateTabModelProfile(tabId, { status: "error", error: (e as Error).message || "Unknown error" });
-      }
-    })();
+    triggerProfile(tabId, imageSrc);
   };
 
   const handleCloseTab = (tabId: string) => {
@@ -334,6 +343,7 @@ export default function Home() {
               imageSrc={activeTab.imageSrc}
               title={activeTab.title}
               modelProfile={activeTab.modelProfile}
+              onApplyColor={(newImage: string) => handleApplyColor(activeTab.id, newImage)}
             />
           ) : (
             <div className="flex flex-col items-center w-full max-w-6xl mx-auto">

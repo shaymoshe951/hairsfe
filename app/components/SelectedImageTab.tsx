@@ -10,6 +10,7 @@ interface SelectedImageTabProps {
   imageSrc: string;
   title: string;
   modelProfile?: ModelProfile;
+  onApplyColor?: (newImage: string) => void;
 }
 
 type ViewMode = 'preview' | 'color-edit' | 'shape-edit';
@@ -39,7 +40,7 @@ const hairColorDict: Record<string, HairColor> = {
   "4.2": { Category: "Fashion", Code: "4.2", Name: "Intense Violet Brown", Description: "Deep brown with purple tone", imagePath: "/resources/hair_colors/4.2.png" },
 };
 
-export default function SelectedImageTab({ imageSrc, title, modelProfile }: SelectedImageTabProps) {
+export default function SelectedImageTab({ imageSrc, title, modelProfile, onApplyColor }: SelectedImageTabProps) {
   const [currentView, setCurrentView] = React.useState<ViewMode>('preview');
   const [selectedColor, setSelectedColor] = React.useState<HairColor | null>(null);
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>("Classic");
@@ -47,6 +48,10 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile }: Sele
   const [colorResultImage, setColorResultImage] = React.useState<string | null>(null);
   const [colorTaskId, setColorTaskId] = React.useState<string | null>(null);
   const [colorProgress, setColorProgress] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    setColorResultImage(imageSrc);
+  }, [imageSrc]);
 
   const handleDownload = async () => {
     try {
@@ -212,7 +217,7 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile }: Sele
                       </div>
                       <p className="text-xs text-gray-500">{colorProgress}%</p>
                     </div>
-                  ) : colorResultImage ? (
+                  ) : selectedColor && colorResultImage ? (
                     <ImagePreview src={colorResultImage} alt={`${title} with ${selectedColor?.Name}`} className="rounded-lg shadow-md" />
                   ) : (
                     <div className="text-center text-gray-500">
@@ -290,8 +295,8 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile }: Sele
               }`}
               disabled={!selectedColor || !colorResultImage}
               onClick={() => {
-                if (selectedColor && colorResultImage) {
-                  console.log(`Applying color: ${selectedColor.Name}`);
+                if (selectedColor && colorResultImage && onApplyColor) {
+                  onApplyColor(colorResultImage);
                 }
               }}
             >
