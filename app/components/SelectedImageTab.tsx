@@ -24,20 +24,34 @@ interface HairColor {
 }
 
 const hairColorDict: Record<string, HairColor> = {
-  "1": { Category: "Classic", Code: "1", Name: "Black", Description: "", imagePath: "/resources/hair_colors/1.png" },
-  "3": { Category: "Classic", Code: "3", Name: "Very Dark Brown", Description: "", imagePath: "/resources/hair_colors/3.png" },
-  "4": { Category: "Classic", Code: "4", Name: "Dark Brown", Description: "", imagePath: "/resources/hair_colors/4.png" },
-  "5": { Category: "Classic", Code: "5", Name: "Medium Brown", Description: "", imagePath: "/resources/hair_colors/5.png" },
-  "6": { Category: "Classic", Code: "6", Name: "Light Brown", Description: "", imagePath: "/resources/hair_colors/6.png" },
-  "7": { Category: "Classic", Code: "7", Name: "Dark Blonde", Description: "", imagePath: "/resources/hair_colors/7.png" },
-  "8": { Category: "Classic", Code: "8", Name: "Light Blonde", Description: "", imagePath: "/resources/hair_colors/8.png" },
-  "9": { Category: "Classic", Code: "9", Name: "Very Light Blonde", Description: "", imagePath: "/resources/hair_colors/9.png" },
-  // Add other categories and colors as needed
   "1.1": { Category: "Cool / Ash", Code: "1.1", Name: "Blue Black", Description: "Very dark with a blue undertone", imagePath: "/resources/hair_colors/1.1.png" },
   "4.1": { Category: "Cool / Ash", Code: "4.1", Name: "Ash Brown", Description: "Medium brown with ash undertones", imagePath: "/resources/hair_colors/4.1.png" },
+  "5.1": { Category: "Cool / Ash", Code: "5.1", Name: "Light Ash Brown", Description: "Slightly lighter ash brown", imagePath: "/resources/hair_colors/5.1.png" },
+  "6.1": { Category: "Cool / Ash", Code: "6.1", Name: "Dark Ash Blonde", Description: "Cool-toned dark blonde", imagePath: "/resources/hair_colors/6.1.png" },
+  "7.1": { Category: "Cool / Ash", Code: "7.1", Name: "Ash Blonde", Description: "Medium blonde with silvery undertones", imagePath: "/resources/hair_colors/7.1.png" },
+  "8.1": { Category: "Cool / Ash", Code: "8.1", Name: "Light Ash Blonde", Description: "Light cool blonde", imagePath: "/resources/hair_colors/8.1.png" },
   "9.3": { Category: "Golden / Warm", Code: "9.3", Name: "Very Light Golden Blonde", Description: "Warm pale blonde", imagePath: "/resources/hair_colors/9.3.png" },
+  "8.03": { Category: "Golden / Warm", Code: "8.03", Name: "Light Natural-Golden Blonde", Description: "Natural golden tone", imagePath: "/resources/hair_colors/8.03.png" },
+  "8.3": { Category: "Golden / Warm", Code: "8.3", Name: "Light Golden Blonde", Description: "Golden light blonde", imagePath: "/resources/hair_colors/8.3.png" },
+  "7.3": { Category: "Golden / Warm", Code: "7.3", Name: "Dark Golden Blonde", Description: "Warm golden dark blonde", imagePath: "/resources/hair_colors/7.3.png" },
+  "6.34": { Category: "Golden / Warm", Code: "6.34", Name: "Light Brown with Gold-Copper", Description: "Golden-copper brown", imagePath: "/resources/hair_colors/6.34.png" },
+  "6.3": { Category: "Golden / Warm", Code: "6.3", Name: "Light Golden Brown", Description: "Warm light brown", imagePath: "/resources/hair_colors/6.3.png" },
   "8.8": { Category: "Mocha", Code: "8.8", Name: "Light Mocha Blonde", Description: "Medium-light blonde with mocha tone", imagePath: "/resources/hair_colors/8.8.png" },
+  "7.8": { Category: "Mocha", Code: "7.8", Name: "Mocha Blonde", Description: "Slightly darker mocha blonde", imagePath: "/resources/hair_colors/7.8.png" },
+  "6.8": { Category: "Mocha", Code: "6.8", Name: "Dark Mocha Blonde", Description: "Deep warm blonde with mocha", imagePath: "/resources/hair_colors/6.8.png" },
+  "5.8": { Category: "Mocha", Code: "5.8", Name: "Light Mocha Brown", Description: "Rich warm light brown", imagePath: "/resources/hair_colors/5.8.png" },
+  "4.8": { Category: "Mocha", Code: "4.8", Name: "Mocha Brown", Description: "Warm medium brown", imagePath: "/resources/hair_colors/4.8.png" },
   "4.2": { Category: "Fashion", Code: "4.2", Name: "Intense Violet Brown", Description: "Deep brown with purple tone", imagePath: "/resources/hair_colors/4.2.png" },
+  "9.22": { Category: "Fashion", Code: "9.22", Name: "Very Light Blonde – Deep Iris", Description: "Pale blonde with violet/iridescent", imagePath: "/resources/hair_colors/9.22.png" },
+  "9.2": { Category: "Fashion", Code: "9.2", Name: "Very Light Blonde – Iridescent Ash", Description: "Pale ash with iridescent tones", imagePath: "/resources/hair_colors/9.2.png" },
+  "9": { Category: "Classic", Code: "9", Name: "Very Light Blonde", Description: "", imagePath: "/resources/hair_colors/9.png" },
+  "8": { Category: "Classic", Code: "8", Name: "Light Blonde", Description: "", imagePath: "/resources/hair_colors/8.png" },
+  "7": { Category: "Classic", Code: "7", Name: "Dark Blonde", Description: "", imagePath: "/resources/hair_colors/7.png" },
+  "6": { Category: "Classic", Code: "6", Name: "Light Brown", Description: "", imagePath: "/resources/hair_colors/6.png" },
+  "5": { Category: "Classic", Code: "5", Name: "Medium Brown", Description: "", imagePath: "/resources/hair_colors/5.png" },
+  "4": { Category: "Classic", Code: "4", Name: "Dark Brown", Description: "", imagePath: "/resources/hair_colors/4.png" },
+  "3": { Category: "Classic", Code: "3", Name: "Very Dark Brown", Description: "", imagePath: "/resources/hair_colors/3.png" },
+  "1": { Category: "Classic", Code: "1", Name: "Black", Description: "", imagePath: "/resources/hair_colors/1.png" },
 };
 
 export default function SelectedImageTab({ imageSrc, title, modelProfile, onApplyColor }: SelectedImageTabProps) {

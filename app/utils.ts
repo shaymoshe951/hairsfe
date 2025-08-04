@@ -28,7 +28,7 @@ export async function pollTaskStatus(taskId: string, onProgress: (progress: numb
     if (!taskId) throw new Error(`Task ID is missing for context: ${context}`);
     const progRes = await fetchWithErrorHandling(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/status/${taskId}`);
     progData = progRes;
-    isDone = progData.done || (progData.progress >= 100);
+    isDone = progData.done; // || (progData.progress >= 100);
     onProgress(progData.progress ?? 0);
   }
   logger.log(`Task completed for ${context}:`, progData);
