@@ -131,7 +131,7 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
       const response = await fetchWithErrorHandling(`${API_BASE_URL}/start/model_haircolor`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageSrc, color: color.Name }),
+        body: JSON.stringify({ image: imageSrc, color: color.Name, color_code: color.Code }),
       });
       
       const { task_id } = response;
