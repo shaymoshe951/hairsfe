@@ -12,34 +12,41 @@ const ImageCard = ({
 
   return (
     <div
-      className="w-[240px] h-[240px] bg-white border-none rounded-[18px] shadow-[0_4px_24px_rgba(0,0,0,0.07)] flex flex-col items-center justify-between p-[20px] relative cursor-pointer transition-[box-shadow] duration-200 font-[system-ui,sans-serif]"
+      className="w-64 h-64  bg-white border-none rounded-[18px] shadow-[0_4px_24px_rgba(0,0,0,0.07)] flex flex-col items-center justify-between p-[20px] relative cursor-pointer transition-[box-shadow] duration-200 font-[system-ui,sans-serif]"
+      // className="w-16 h-16 bg-white border-none rounded-md shadow-md flex items-center justify-center relative cursor-pointer overflow-hidden"
+
       onMouseOver={onHover}
       onMouseOut={() => onHover(null)}
-      // onClick={isDone ? onSelect : undefined}
+    // onClick={isDone ? onSelect : undefined}
     >
       {showFavoriteButton && (
-        <button
-          aria-label={isFavorite ? "Unfavorite" : "Favorite"}
-          className={`absolute top-[16px] right-[16px] border-none rounded-full w-[36px] h-[36px] flex items-center justify-center text-[22px] cursor-pointer shadow-[0_1px_4px_rgba(0,0,0,0.07)] transition-[color,background] duration-200 z-[2] ${isFavorite ? "bg-[#ede7f6] text-[#7c4dff]" : "bg-[#f7f5f2] text-[#bbb]"}`}
-          onClick={(e) => {
-            e.stopPropagation(); // Prevent card click
-            onFavoriteToggle();
-          }}
-        >
-          ♥
-        </button>
-      )}
-
-      <img src={src} alt="Style" className="w-full h-[140px] object-contain rounded-[10px] bg-[#f7f5f2]" />
-
-      {isProcessing && !isDone && (
-        <div className="w-full h-[10px] bg-[#ede7f6] rounded-[5px] overflow-hidden">
-          <div
-            className="h-full bg-[#7c4dff] rounded-[5px] transition-[width] duration-[0.3s] ease-in-out"
-            style={{ width: `${progress}%` }}
-          />
+        <div className="absolute top-0 right-0 p-2 z-[2]">
+          <button
+            aria-label={isFavorite ? "Unfavorite" : "Favorite"}
+            className={`w-8 h-8 text-[48px] rounded-full flex items-center justify-center cursor-pointer shadow-sm transition duration-200 bg-white ${isFavorite
+                ? "bg-[#ede7f6] text-[#7c4dff]"
+                : "bg-[#f7f5f2] text-[#bbb]"
+              }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onFavoriteToggle();
+            }}
+          >
+            ♥
+          </button>
         </div>
       )}
+
+      <img src={src} alt="Style" className="w-full h-[100px] object-contain rounded-[10px] bg-[#f7f5f2]" />
+
+      {isProcessing && !isDone && (
+  <div className="w-full h-[10px] bg-[#e0e0e0] rounded-[5px] overflow-hidden mt-2">
+    <div
+      className="h-full bg-[#7c4dff] rounded-[5px] transition-[width] duration-[0.3s] ease-in-out"
+      style={{ width: `${progress ?? 0}%` }}
+    />
+  </div>
+)}
 
       {isDone && (
         <button

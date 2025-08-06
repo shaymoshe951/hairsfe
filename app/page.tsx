@@ -298,13 +298,13 @@ export default function Home() {
       <div className="flex flex-1 overflow-hidden">
         {tabs.length > 0 && (
           <aside className="w-72 bg-gray-50 border-r border-gray-200 p-4 overflow-y-auto">
-            <button
+            {activeTabId && <button
               onClick={() => setActiveTabId(null)}
               className="w-full mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
               title="Back to Catalog"
             >
               ← Back to Catalog
-            </button>
+            </button>}
             <h3 className="text-lg font-semibold text-gray-800 mb-4">My Styles</h3>
             <div className="space-y-3">
               {tabs.map(tab => (
@@ -360,7 +360,8 @@ export default function Home() {
               {state.items.length > 0 && (
                 <section className="w-full mt-10">
                   <h2 className="text-2xl font-semibold text-center mb-6">Choose Your Style</h2>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6 max-h-[60vh] overflow-y-auto">
+                  {/* <div className="grid grid-cols-[repeat(auto-fill,minmax(60px,1fr))] gap-6 max-h-[60vh] overflow-y-auto"> */}
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(60px,1fr))] sm:grid-cols-3 md:grid-cols-4 gap-6  overflow-y-auto">
                     {state.items.map((item: any, idx: any) => (
                       <ImageCard
                         key={idx}

@@ -14,7 +14,7 @@ interface ImagePreviewProps {
 export default function ImagePreview({
   src,
   alt,
-  size = 400,
+  size = 300,
   className = "",
   border = false,
 }: ImagePreviewProps) {

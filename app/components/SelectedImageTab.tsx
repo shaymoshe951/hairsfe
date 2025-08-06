@@ -1,6 +1,9 @@
 "use client";
 import React from "react";
 import ImagePreview from "./ImagePreview";
+// import HairColorSelector from "./HairColorSelector";
+import dynamic from 'next/dynamic';
+const HairColorSelector = dynamic(() => import('./HairColorSelector'), { ssr: false });
 import { ModelProfile } from "../types";
 import { fetchWithErrorHandling, pollTaskStatus } from "../utils";
 
@@ -16,48 +19,15 @@ interface SelectedImageTabProps {
 type ViewMode = 'preview' | 'color-edit' | 'shape-edit';
 
 interface HairColor {
-  Category: string;
-  Code: string;
-  Name: string;
-  Description: string;
-  imagePath: string;
+  name: string;
+  code: string;
+  hex: string;
+  category: string;
 }
-
-const hairColorDict: Record<string, HairColor> = {
-  "1.1": { Category: "Cool / Ash", Code: "1.1", Name: "Blue Black", Description: "Very dark with a blue undertone", imagePath: "/resources/hair_colors/1.1.jpeg" },
-  "4.1": { Category: "Cool / Ash", Code: "4.1", Name: "Ash Brown", Description: "Medium brown with ash undertones", imagePath: "/resources/hair_colors/4.1.jpeg" },
-  "5.1": { Category: "Cool / Ash", Code: "5.1", Name: "Light Ash Brown", Description: "Slightly lighter ash brown", imagePath: "/resources/hair_colors/5.1.jpeg" },
-  "6.1": { Category: "Cool / Ash", Code: "6.1", Name: "Dark Ash Blonde", Description: "Cool-toned dark blonde", imagePath: "/resources/hair_colors/6.1.jpeg" },
-  "7.1": { Category: "Cool / Ash", Code: "7.1", Name: "Ash Blonde", Description: "Medium blonde with silvery undertones", imagePath: "/resources/hair_colors/7.1.jpeg" },
-  "8.1": { Category: "Cool / Ash", Code: "8.1", Name: "Light Ash Blonde", Description: "Light cool blonde", imagePath: "/resources/hair_colors/8.1.jpeg" },
-  "9.3": { Category: "Golden / Warm", Code: "9.3", Name: "Very Light Golden Blonde", Description: "Warm pale blonde", imagePath: "/resources/hair_colors/9.3.jpeg" },
-  "8.03": { Category: "Golden / Warm", Code: "8.03", Name: "Light Natural-Golden Blonde", Description: "Natural golden tone", imagePath: "/resources/hair_colors/8.03.jpeg" },
-  "8.3": { Category: "Golden / Warm", Code: "8.3", Name: "Light Golden Blonde", Description: "Golden light blonde", imagePath: "/resources/hair_colors/8.3.jpeg" },
-  "7.3": { Category: "Golden / Warm", Code: "7.3", Name: "Dark Golden Blonde", Description: "Warm golden dark blonde", imagePath: "/resources/hair_colors/7.3.jpeg" },
-  "6.34": { Category: "Golden / Warm", Code: "6.34", Name: "Light Brown with Gold-Copper", Description: "Golden-copper brown", imagePath: "/resources/hair_colors/6.34.jpeg" },
-  "6.3": { Category: "Golden / Warm", Code: "6.3", Name: "Light Golden Brown", Description: "Warm light brown", imagePath: "/resources/hair_colors/6.3.jpeg" },
-  "8.8": { Category: "Mocha", Code: "8.8", Name: "Light Mocha Blonde", Description: "Medium-light blonde with mocha tone", imagePath: "/resources/hair_colors/8.8.jpeg" },
-  "7.8": { Category: "Mocha", Code: "7.8", Name: "Mocha Blonde", Description: "Slightly darker mocha blonde", imagePath: "/resources/hair_colors/7.8.jpeg" },
-  "6.8": { Category: "Mocha", Code: "6.8", Name: "Dark Mocha Blonde", Description: "Deep warm blonde with mocha", imagePath: "/resources/hair_colors/6.8.jpeg" },
-  "5.8": { Category: "Mocha", Code: "5.8", Name: "Light Mocha Brown", Description: "Rich warm light brown", imagePath: "/resources/hair_colors/5.8.jpeg" },
-  "4.8": { Category: "Mocha", Code: "4.8", Name: "Mocha Brown", Description: "Warm medium brown", imagePath: "/resources/hair_colors/4.8.jpeg" },
-  "4.2": { Category: "Fashion", Code: "4.2", Name: "Intense Violet Brown", Description: "Deep brown with purple tone", imagePath: "/resources/hair_colors/4.2.jpeg" },
-  "9.22": { Category: "Fashion", Code: "9.22", Name: "Very Light Blonde – Deep Iris", Description: "Pale blonde with violet/iridescent", imagePath: "/resources/hair_colors/9.22.jpeg" },
-  "9.2": { Category: "Fashion", Code: "9.2", Name: "Very Light Blonde – Iridescent Ash", Description: "Pale ash with iridescent tones", imagePath: "/resources/hair_colors/9.2.jpeg" },
-  "9": { Category: "Classic", Code: "9", Name: "Very Light Blonde", Description: "", imagePath: "/resources/hair_colors/9.jpeg" },
-  "8": { Category: "Classic", Code: "8", Name: "Light Blonde", Description: "", imagePath: "/resources/hair_colors/8.jpeg" },
-  "7": { Category: "Classic", Code: "7", Name: "Dark Blonde", Description: "", imagePath: "/resources/hair_colors/7.jpeg" },
-  "6": { Category: "Classic", Code: "6", Name: "Light Brown", Description: "", imagePath: "/resources/hair_colors/6.jpeg" },
-  "5": { Category: "Classic", Code: "5", Name: "Medium Brown", Description: "", imagePath: "/resources/hair_colors/5.jpeg" },
-  "4": { Category: "Classic", Code: "4", Name: "Dark Brown", Description: "", imagePath: "/resources/hair_colors/4.jpeg" },
-  "3": { Category: "Classic", Code: "3", Name: "Very Dark Brown", Description: "", imagePath: "/resources/hair_colors/3.jpeg" },
-  "1": { Category: "Classic", Code: "1", Name: "Black", Description: "", imagePath: "/resources/hair_colors/1.jpeg" },
-};
 
 export default function SelectedImageTab({ imageSrc, title, modelProfile, onApplyColor }: SelectedImageTabProps) {
   const [currentView, setCurrentView] = React.useState<ViewMode>('preview');
   const [selectedColor, setSelectedColor] = React.useState<HairColor | null>(null);
-  const [selectedCategory, setSelectedCategory] = React.useState<string | null>("Classic");
   const [isProcessingColor, setIsProcessingColor] = React.useState(false);
   const [colorResultImage, setColorResultImage] = React.useState<string | null>(null);
   const [colorTaskId, setColorTaskId] = React.useState<string | null>(null);
@@ -111,14 +81,6 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
     }
   };
 
-  const getColorsByCategory = (category: string): HairColor[] => {
-    return Object.values(hairColorDict).filter(color => color.Category === category);
-  };
-
-  const getAllCategories = (): string[] => {
-    return Array.from(new Set(Object.values(hairColorDict).map(color => color.Category)));
-  };
-
   const handleColorSelect = async (color: HairColor) => {
     setSelectedColor(color);
     
@@ -162,38 +124,22 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
     }
   };
 
-  const handleCategorySelect = (category: string) => {
-    setSelectedCategory(category);
-    setSelectedColor(null); // Reset selected color when changing category
-    setColorResultImage(null); // Reset result image
-    setColorProgress(0); // Reset progress
+  const handleColorApply = () => {
+    if (colorResultImage && onApplyColor) {
+      onApplyColor(colorResultImage);
+    }
+  };
+
+  const handleNavigate = (type: string) => {
+    if (type === 'back') {
+      setCurrentView('preview');
+    }
   };
 
   const renderColorEditView = () => {
-    const categories = getAllCategories();
-    const colors = selectedCategory ? getColorsByCategory(selectedCategory) : [];
-
     return (
       <div className="w-full animate-fade-in flex">
-        {/* Vertical Category Selection */}
-        <div className="w-1/6 p-4 bg-gray-100">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Categories</h3>
-          {categories.map((category) => (
-            <button
-              key={category}
-              className={`w-full text-left py-2 mb-2 text-sm text-gray-700 hover:bg-gray-200 rounded ${
-                selectedCategory === category ? 'bg-blue-200 font-bold' : ''
-              }`}
-              onClick={() => handleCategorySelect(category)}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-
-        {/* Main Content */}
-        <div className="w-5/6 p-4">
-          <div className="text-center mb-8">
+          {/* <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-800">Choose Hair Color</h2>
             <p className="text-gray-500 mt-2">Select a color to apply to your hairstyle</p>
             {selectedColor && (
@@ -202,8 +148,9 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
                 <p className="text-blue-600 text-sm">{selectedColor.Description}</p>
               </div>
             )}
-          </div>
+          </div> */}
           
+          <div className="w-full h-full">
           {/* Image Comparison Section */}
           <div className="flex justify-center mb-6">
             <div className="flex gap-8 items-start">
@@ -240,88 +187,40 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
                   )}
                 </div>
               </div>
+           
             </div>
-          </div>
-          
-          <div className="max-w-6xl mx-auto mb-12">
-            {selectedCategory && (
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
-                  {selectedCategory}
-                </h3>
-                <div className="flex justify-center gap-4 flex-wrap">
-                  {colors.map((color) => (
-                    <button
-                      key={color.Code}
-                      className={`group flex flex-col items-center p-2 rounded-full transition-all duration-200 ${
-                        selectedColor?.Code === color.Code
-                          ? 'ring-2 ring-blue-500'
-                          : 'hover:ring-2 hover:ring-gray-300'
-                      }`}
-                      onClick={() => handleColorSelect(color)}
-                      title={color.Description}
-                      disabled={isProcessingColor}
-                    >
-                      <div className="relative">
-                        <img
-                          src={color.imagePath}
-                          alt={color.Name}
-                          className="w-16 h-16 rounded-full object-cover shadow-md"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            const fallback = target.nextElementSibling as HTMLDivElement;
-                            if (fallback) fallback.style.display = 'block';
-                          }}
-                        />
-                        <div
-                          className="w-16 h-16 rounded-full shadow-md bg-gray-300 hidden"
-                          style={{ backgroundColor: '#8d6e63' }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-700 mt-2 text-center leading-tight font-medium">
-                        {color.Name}
-                      </span>
-                      <span className="text-xs text-gray-500 text-center">
-                        {color.Code}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="flex justify-center gap-4">
+         </div>
+         <div className="flex justify-between items-center mt-8 pt-8 border-t border-gray-200">
+          {["back"].map(type => (
             <button
-              onClick={() => setCurrentView('preview')}
-              className="flex items-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transform transition-all duration-200 hover:scale-105"
+              key={type}
+              className="border border-gray-300 py-2 px-5 rounded-lg text-sm text-gray-600 transition-all duration-300 hover:bg-gray-50 hover:text-gray-800"
+              onClick={() => handleNavigate(type)}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 12H6m0 0l4-4m-4 4l4 4"/>
-              </svg>
-              <span>Back to Preview</span>
+              {type === "back" ? "← Back" : type === "previous" ? "Previous" : "Next →"}
             </button>
-            <button
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg transform transition-all duration-200 hover:scale-105 ${
-                selectedColor && colorResultImage
-                  ? 'bg-purple-600 text-white hover:bg-purple-700'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-              disabled={!selectedColor || !colorResultImage}
-              onClick={() => {
-                if (selectedColor && colorResultImage && onApplyColor) {
-                  onApplyColor(colorResultImage);
-                }
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 6L9 17l-5-5"/>
-              </svg>
-              <span>Apply Color</span>
-            </button>
-          </div>
+          ))}
+                  <button
+          className="bg-indigo-500 text-white py-4 px-10 rounded-xl text-base font-semibold block mx-auto transition-all duration-300 shadow-lg hover:bg-indigo-600"
+          onClick={handleColorApply}
+        >
+          Apply Colors
+        </button>
         </div>
+        </div>
+         
+      <div className="w-full h-full">
+        <HairColorSelector
+          selectedColor={selectedColor}
+          isProcessing={isProcessingColor}
+          onColorSelected={handleColorSelect}
+          onColorApplied={handleColorApply}
+          // onNavigate={handleNavigate}
+        />
       </div>
+
+      </div>
+      
     );
   };
 
