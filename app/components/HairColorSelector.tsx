@@ -92,9 +92,9 @@ const HairColorSelector = (props) => {
               className={`cursor-pointer text-center p-3 rounded-2xl bg-gray-50 relative overflow-hidden hover:-translate-y-1 hover:shadow-xl transition-all duration-300 ${selectedColor?.Code === color.Code ? "bg-indigo-100 shadow-md" : ""}`}
               onClick={() => handleSelectColor(color)}
             >
-              <img src={color.imagePath} alt={color.Name} className="rounded-xl w-full h-24 object-cover mb-2" />
+              <img src={color.imagePath} alt={color.Name} className="rounded-lg w-full h-18 object-cover mb-2" />
               {/* <div className="text-sm font-medium text-gray-800">{color.Name}</div> */}
-              <div className="text-s text-gray-600">{color.Code}</div>
+              <div className="text-s text-gray-600 font-bold">{color.Code}</div>
             </div>
           ))}
         </div>

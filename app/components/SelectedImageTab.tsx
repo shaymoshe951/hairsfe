@@ -194,14 +194,14 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
           {["back"].map(type => (
             <button
               key={type}
-              className="border border-gray-300 py-2 px-5 rounded-lg text-sm text-gray-600 transition-all duration-300 hover:bg-gray-50 hover:text-gray-800"
+              className="bg-indigo-500 text-white py-4 px-10 rounded-xl text-base font-semibold block mx-auto transition-all duration-300 shadow-lg hover:bg-indigo-600"
               onClick={() => handleNavigate(type)}
             >
               {type === "back" ? "← Back" : type === "previous" ? "Previous" : "Next →"}
             </button>
           ))}
                   <button
-          className="bg-indigo-500 text-white py-4 px-10 rounded-xl text-base font-semibold block mx-auto transition-all duration-300 shadow-lg hover:bg-indigo-600"
+          className="bg-red-500 text-white py-4 px-10 rounded-xl text-base font-semibold block mx-auto transition-all duration-300 shadow-lg hover:bg-indigo-600"
           onClick={handleColorApply}
         >
           Apply Colors
