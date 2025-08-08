@@ -1,4 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { fetchWithErrorHandling, pollTaskStatus } from "../utils";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 interface ImageMaskEditorProps {
@@ -13,6 +15,8 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
   const [brushSize, setBrushSize] = useState(10);
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [resultImage, setResultImage] = useState<string | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -66,6 +70,7 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
   const clearMask = () => {
     if (context && canvasRef.current) {
       context.clearRect(0, 0, width, height);
+      setResultImage(null); // Clear result image when mask is cleared
     }
   };
 
@@ -77,6 +82,9 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
     if (!canvasRef.current) return;
 
     setIsSending(true);
+    setProgress(0);
+    setResultImage(null);
+
     try {
       const maskData = canvasRef.current.toDataURL('image/png');
       const response = await fetch(`${API_BASE_URL}/start/model_hair_reshape`, {
@@ -84,12 +92,25 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: imageSrc, mask: maskData }),
       });
+
       if (!response.ok) {
         throw new Error('Failed to send mask');
       }
+
       const data = await response.json();
-      console.log('Server response:', data);
-      // You can add further handling here, e.g., update UI with response
+      const { task_id } = data;
+
+      // Poll task status for progress
+      const result = await pollTaskStatus(task_id, setProgress, "hair mask processing");
+
+      // Handle the result
+      if (result.result || result.resultImage || result.image || result.data) {
+        const resultImageUrl = result.result || result.resultImage || result.image || result.data;
+        setResultImage(resultImageUrl);
+        setProgress(100);
+      } else {
+        console.error('No result image found in response:', result);
+      }
     } catch (error) {
       console.error('Error sending mask:', error);
     } finally {
@@ -122,31 +143,57 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
           style={{ background: 'transparent' }}
         />
       </div>
-      <div className="mt-4 flex items-center gap-4">
-        <label>
-          Brush Size:
-          <input
-            type="range"
-            min="1"
-            max="50"
-            value={brushSize}
-            onChange={handleBrushSizeChange}
-            className="ml-2"
-          />
-        </label>
-        <button
-          onClick={clearMask}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-        >
-          Clear Mask
-        </button>
-        <button
-          onClick={sendMaskToServer}
-          disabled={isSending}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-        >
-          {isSending ? 'Sending...' : 'Show Me'}
-        </button>
+      <div className="mt-4 flex flex-col items-center gap-4 w-full">
+        <div className="flex items-center gap-4">
+          <label>
+            Brush Size:
+            <input
+              type="range"
+              min="1"
+              max="50"
+              value={brushSize}
+              onChange={handleBrushSizeChange}
+              className="ml-2"
+            />
+          </label>
+          <button
+            onClick={clearMask}
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+          >
+            Clear Mask
+          </button>
+          <button
+            onClick={sendMaskToServer}
+            disabled={isSending}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+          >
+            {isSending ? 'Processing...' : 'Show Me'}
+          </button>
+        </div>
+        {isSending && (
+          <div className="w-full max-w-xs mt-4">
+            <p className="text-sm text-gray-600 mb-2">Processing mask...</p>
+            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">{progress}%</p>
+          </div>
+        )}
+        {resultImage && !isSending && (
+          <div className="mt-4">
+            <h3 className="text-lg font-medium text-gray-700 mb-2">Processed Result</h3>
+            <img
+              src={resultImage}
+              alt="Processed mask result"
+              width={width}
+              height={height}
+              className="rounded-lg shadow-md"
+            />
+          </div>
+        )}
       </div>
     </div>
   );
