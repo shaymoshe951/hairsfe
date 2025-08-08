@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config';
 
 interface ImageMaskEditorProps {
   imageSrc: string;
@@ -102,7 +103,7 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
         tempCtx.drawImage(img, 0, 0, width, height);
         const imageData = tempCanvas.toDataURL('image/png');
         // POST to model_update_shape
-        const response = await fetch('/model_hair_reshape', {
+        const response = await fetch(`${API_BASE_URL}/start/model_hair_reshape`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: imageData, mask: maskData }),
