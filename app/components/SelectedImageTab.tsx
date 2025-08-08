@@ -1,9 +1,9 @@
 "use client";
 import React from "react";
 import ImagePreview from "./ImagePreview";
-// import HairColorSelector from "./HairColorSelector";
 import dynamic from 'next/dynamic';
 const HairColorSelector = dynamic(() => import('./HairColorSelector'), { ssr: false });
+const ImageMaskEditor = dynamic(() => import('./ImageMaskEditor'), { ssr: false });
 import { ModelProfile } from "../types";
 import { fetchWithErrorHandling, pollTaskStatus } from "../utils";
 
@@ -139,17 +139,6 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
   const renderColorEditView = () => {
     return (
       <div className="w-full animate-fade-in flex">
-          {/* <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-800">Choose Hair Color</h2>
-            <p className="text-gray-500 mt-2">Select a color to apply to your hairstyle</p>
-            {selectedColor && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-blue-800 font-medium">Selected: {selectedColor.Name}</p>
-                <p className="text-blue-600 text-sm">{selectedColor.Description}</p>
-              </div>
-            )}
-          </div> */}
-          
           <div className="w-full h-full">
           {/* Image Comparison Section */}
           <div className="flex justify-center mb-6">
@@ -215,12 +204,9 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
           isProcessing={isProcessingColor}
           onColorSelected={handleColorSelect}
           onColorApplied={handleColorApply}
-          // onNavigate={handleNavigate}
         />
       </div>
-
       </div>
-      
     );
   };
 
@@ -292,25 +278,34 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
     </div>
   );
 
+  const renderShapeEditView = () => (
+    <div className="flex flex-col items-center justify-center h-full w-full animate-fade-in">
+      <h2 className="text-3xl font-bold text-gray-800 mb-4">Manual Hair Shape Editor</h2>
+      <p className="text-gray-500 mb-8">Draw on the image to create or edit a hair mask</p>
+      <div className="bg-gray-100 rounded-lg p-4 max-w-md">
+        <ImageMaskEditor
+          imageSrc={imageSrc}
+          width={400}
+          height={400}
+        />
+      </div>
+      <button
+        onClick={() => setCurrentView('preview')}
+        className="flex items-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transform transition-all duration-200 hover:scale-105 mt-8"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M19 12H6m0 0l4-4m-4 4l4 4"/>
+        </svg>
+        <span>Back to Preview</span>
+      </button>
+    </div>
+  );
+
   return (
     <div className="w-full h-full">
       {currentView === 'preview' && renderPreviewView()}
       {currentView === 'color-edit' && renderColorEditView()}
-      {currentView === 'shape-edit' && (
-        <div className="flex flex-col items-center justify-center h-full animate-fade-in">
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">Manual Hair Shape Editor</h2>
-          <p className="text-gray-500 mb-8">Coming soon...</p>
-          <button
-            onClick={() => setCurrentView('preview')}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transform transition-all duration-200 hover:scale-105"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H6m0 0l4-4m-4 4l4 4"/>
-            </svg>
-            <span>Back to Preview</span>
-          </button>
-        </div>
-      )}
+      {currentView === 'shape-edit' && renderShapeEditView()}
     </div>
   );
 }
