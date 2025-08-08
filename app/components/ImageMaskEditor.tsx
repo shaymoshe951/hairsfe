@@ -119,82 +119,84 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
   };
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="relative border border-gray-300">
-        <img
-          src={imageSrc}
-          alt="Original image"
-          width={width}
-          height={height}
-          className="block"
-        />
-        <canvas
-          ref={canvasRef}
-          width={width}
-          height={height}
-          onMouseDown={startDrawing}
-          onMouseMove={draw}
-          onMouseUp={stopDrawing}
-          onMouseOut={stopDrawing}
-          onTouchStart={startDrawing}
-          onTouchMove={draw}
-          onTouchEnd={stopDrawing}
-          className="absolute top-0 left-0"
-          style={{ background: 'transparent' }}
-        />
-      </div>
-      <div className="mt-4 flex flex-col items-center gap-4 w-full">
-        <div className="flex items-center gap-4">
-          <label>
-            Brush Size:
-            <input
-              type="range"
-              min="1"
-              max="50"
-              value={brushSize}
-              onChange={handleBrushSizeChange}
-              className="ml-2"
-            />
-          </label>
-          <button
-            onClick={clearMask}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-          >
-            Clear Mask
-          </button>
-          <button
-            onClick={sendMaskToServer}
-            disabled={isSending}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-          >
-            {isSending ? 'Processing...' : 'Show Me'}
-          </button>
+    <div className="flex items-start gap-8">
+      <div className="flex flex-col items-center">
+        <div className="relative border border-gray-300">
+          <img
+            src={imageSrc}
+            alt="Original image"
+            width={width}
+            height={height}
+            className="block"
+          />
+          <canvas
+            ref={canvasRef}
+            width={width}
+            height={height}
+            onMouseDown={startDrawing}
+            onMouseMove={draw}
+            onMouseUp={stopDrawing}
+            onMouseOut={stopDrawing}
+            onTouchStart={startDrawing}
+            onTouchMove={draw}
+            onTouchEnd={stopDrawing}
+            className="absolute top-0 left-0"
+            style={{ background: 'transparent' }}
+          />
         </div>
-        {isSending && (
-          <div className="w-full max-w-xs mt-4">
-            <p className="text-sm text-gray-600 mb-2">Processing mask...</p>
-            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${progress}%` }}
+        <div className="mt-4 flex flex-col items-center gap-4 w-full max-w-md">
+          <div className="flex items-center gap-4">
+            <label>
+              Brush Size:
+              <input
+                type="range"
+                min="1"
+                max="50"
+                value={brushSize}
+                onChange={handleBrushSizeChange}
+                className="ml-2"
               />
+            </label>
+            <button
+              onClick={clearMask}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            >
+              Clear Mask
+            </button>
+            <button
+              onClick={sendMaskToServer}
+              disabled={isSending}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+            >
+              {isSending ? 'Processing...' : 'Show Me'}
+            </button>
+          </div>
+          {isSending && (
+            <div className="w-full mt-4">
+              <p className="text-sm text-gray-600 mb-2">Processing mask...</p>
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{progress}%</p>
             </div>
-            <p className="text-xs text-gray-500 mt-1">{progress}%</p>
-          </div>
-        )}
-        {resultImage && !isSending && (
-          <div className="mt-4">
-            <h3 className="text-lg font-medium text-gray-700 mb-2">Processed Result</h3>
-            <img
-              src={resultImage}
-              alt="Processed mask result"
-              width={width}
-              height={height}
-              className="rounded-lg shadow-md"
-            />
-          </div>
-        )}
+          )}
+        </div>
       </div>
+      {resultImage && !isSending && (
+        <div className="flex flex-col items-center">
+          <h3 className="text-lg font-medium text-gray-700 mb-2">Processed Result</h3>
+          <img
+            src={resultImage}
+            alt="Processed mask result"
+            width={width}
+            height={height}
+            className="rounded-lg shadow-md border border-gray-300"
+          />
+        </div>
+      )}
     </div>
   );
 };
