@@ -17,6 +17,7 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
   const [isSending, setIsSending] = useState(false);
   const [progress, setProgress] = useState(0);
   const [resultImage, setResultImage] = useState<string | null>(null);
+  const [resultDimensions, setResultDimensions] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -71,6 +72,7 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
     if (context && canvasRef.current) {
       context.clearRect(0, 0, width, height);
       setResultImage(null); // Clear result image when mask is cleared
+      setResultDimensions(null);
     }
   };
 
@@ -84,6 +86,7 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
     setIsSending(true);
     setProgress(0);
     setResultImage(null);
+    setResultDimensions(null);
 
     try {
       const maskData = canvasRef.current.toDataURL('image/png');
@@ -107,6 +110,13 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
       if (result.result || result.resultImage || result.image || result.data) {
         const resultImageUrl = result.result || result.resultImage || result.image || result.data;
         setResultImage(resultImageUrl);
+
+        // Determine the natural dimensions of the result image
+        const img = new Image();
+        img.onload = () => {
+          setResultDimensions({ width: img.width, height: img.height });
+        };
+        img.src = resultImageUrl;
         setProgress(100);
       } else {
         console.error('No result image found in response:', result);
@@ -121,7 +131,7 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
   return (
     <div className="flex items-start gap-8">
       <div className="flex flex-col items-center">
-        <div className="relative border border-gray-300">
+        <div className="relative border border-gray-300" style={{ width: `${width}px`, height: `${height}px` }}>
           <img
             src={imageSrc}
             alt="Original image"
@@ -185,18 +195,20 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
           )}
         </div>
       </div>
-      {resultImage && !isSending && (
-        <div className="flex flex-col items-center">
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Processed Result</h3>
-          <img
-            src={resultImage}
-            alt="Processed mask result"
-            width={width}
-            height={height}
-            className="rounded-lg shadow-md border border-gray-300"
-          />
-        </div>
-      )}
+      <div className="flex flex-col items-center" style={{ minWidth: `${width}px`, minHeight: `${height}px` }}>
+        {resultImage && !isSending && (
+          <div className="flex flex-col items-center">
+            <img
+              src={resultImage}
+              alt="Processed mask result"
+              width={resultDimensions?.width || width}
+              height={resultDimensions?.height || height}
+              className="rounded-lg shadow-md border border-gray-300"
+            />
+            <h3 className="text-lg font-medium text-gray-700 mt-2">Processed Result</h3>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
