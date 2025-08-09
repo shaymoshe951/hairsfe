@@ -32,6 +32,7 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
   const [colorResultImage, setColorResultImage] = React.useState<string | null>(null);
   const [colorTaskId, setColorTaskId] = React.useState<string | null>(null);
   const [colorProgress, setColorProgress] = React.useState<number>(0);
+  const [shapeResultImage, setShapeResultImage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setColorResultImage(imageSrc);
@@ -83,26 +84,26 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
 
   const handleColorSelect = async (color: HairColor) => {
     setSelectedColor(color);
-    
+
     // Call the model_haircolor API
     try {
       setIsProcessingColor(true);
       setColorResultImage(null); // Reset previous result
       setColorProgress(0); // Reset progress
-      
+
       const response = await fetchWithErrorHandling(`${API_BASE_URL}/start/model_haircolor`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: imageSrc, color: color.Name, color_code: color.Code }),
       });
-      
+
       const { task_id } = response;
       setColorTaskId(task_id);
-      
+
       // Use the existing pollTaskStatus function
       try {
         const result = await pollTaskStatus(task_id, setColorProgress, "hair color processing");
-        
+
         // Handle the result
         if (result.result || result.resultImage || result.image || result.data) {
           const resultImage = result.result || result.resultImage || result.image || result.data;
@@ -116,7 +117,7 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
       } finally {
         setIsProcessingColor(false);
       }
-      
+
     } catch (error) {
       console.error("Error starting hair color processing:", error);
       setIsProcessingColor(false);
@@ -150,7 +151,7 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
                   <ImagePreview src={imageSrc} alt={title} className="rounded-lg shadow-md" />
                 </div>
               </div>
-              
+
               {/* Result Image */}
               <div className="flex flex-col items-center">
                 <h3 className="text-lg font-medium text-gray-700 mb-2">Result</h3>
@@ -176,7 +177,7 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
                   )}
                 </div>
               </div>
-           
+
             </div>
          </div>
          <div className="flex justify-between items-center mt-8 pt-8 border-t border-gray-200">
@@ -197,7 +198,7 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
         </button>
         </div>
         </div>
-         
+
       <div className="w-full h-full">
         <HairColorSelector
           selectedColor={selectedColor}
@@ -287,17 +288,29 @@ export default function SelectedImageTab({ imageSrc, title, modelProfile, onAppl
           imageSrc={imageSrc}
           width={400}
           height={400}
+          onResultReady={setShapeResultImage}
         />
       </div>
-      <button
-        onClick={() => setCurrentView('preview')}
-        className="flex items-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transform transition-all duration-200 hover:scale-105 mt-8"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M19 12H6m0 0l4-4m-4 4l4 4"/>
-        </svg>
-        <span>Back to Preview</span>
-      </button>
+      <div className="flex justify-center items-center gap-6 mt-8 pt-8 border-t border-gray-200 w-full max-w-md">
+        <button
+          onClick={() => setCurrentView('preview')}
+          className="bg-indigo-500 text-white py-4 px-10 rounded-xl text-base font-semibold transition-all duration-300 shadow-lg hover:bg-indigo-600"
+        >
+          ← Back
+        </button>
+        <button
+          onClick={() => {
+            if (shapeResultImage && onApplyColor) {
+              onApplyColor(shapeResultImage);
+              setCurrentView('preview');
+            }
+          }}
+          disabled={!shapeResultImage}
+          className="bg-red-500 text-white py-4 px-10 rounded-xl text-base font-semibold transition-all duration-300 shadow-lg hover:bg-red-600 disabled:opacity-50"
+        >
+          Apply Shape
+        </button>
+      </div>
     </div>
   );
 

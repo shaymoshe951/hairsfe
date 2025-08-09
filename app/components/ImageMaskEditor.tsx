@@ -7,9 +7,10 @@ interface ImageMaskEditorProps {
   imageSrc: string;
   width?: number;
   height?: number;
+  onResultReady?: (result: string) => void;
 }
 
-const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500, height = 500 }) => {
+const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500, height = 500, onResultReady }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [brushSize, setBrushSize] = useState(10);
@@ -118,6 +119,9 @@ const ImageMaskEditor: React.FC<ImageMaskEditorProps> = ({ imageSrc, width = 500
         };
         img.src = resultImageUrl;
         setProgress(100);
+        if (onResultReady) {
+          onResultReady(resultImageUrl);
+        }
       } else {
         console.error('No result image found in response:', result);
       }
